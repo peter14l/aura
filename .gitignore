@@ -1,0 +1,8 @@
+/target
+/aura-app/engines
+*.dll
+*.so
+*.dylib
+.env
+node_modules
+dist

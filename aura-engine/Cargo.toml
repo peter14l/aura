@@ -1,0 +1,10 @@
+[package]
+name = "aura-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# This will be a cdylib loaded by aura-app
+[lib]
+name = "aura_engine"
+crate-type = ["cdylib"]

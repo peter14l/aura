@@ -1,0 +1,111 @@
+# .github/workflows/aura-build.yml
+
+name: Aura — Build, Verify & Ship
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (stable/nightly)'
+        required: false
+        default: 'nightly'
+
+env:
+  RUST_VERSION: "1.82.0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Job 1: Vibe Check (lint + test) ─────────────────────────────────────
+  vibe-check:
+    name: 🌿 Vibe Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run tests
+        run: cargo test --workspace
+
+  # ── Job 2: Build Engine (cdylib for all platforms) ───────────────────────
+  build-engine:
+    name: 🔧 Build Engine — ${{ matrix.platform }}
+    needs: vibe-check
+    strategy:
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: aura_engine.dll
+          - platform: linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact: libaura_engine.so
+          - platform: macos
+            os: macos-14
+            target: aarch64-apple-darwin
+            artifact: libaura_engine.dylib
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: engine-${{ matrix.platform }}
+      - name: Build engine cdylib
+        run: cargo build --release -p aura-engine --target ${{ matrix.target }}
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-${{ matrix.platform }}
+          path: target/${{ matrix.target     }}/release/${{ matrix.artifact }}
+
+  # ── Job 3: Build App (full bundle) ──────────────────────────────────────
+  build-app:
+    name: 📦 Bundle App — ${{ matrix.platform }}
+    needs: build-engine
+    strategy:
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            bundle: exe
+          - platform: linux
+            os: ubuntu-22.04
+            bundle: deb
+          - platform: macos
+            os: macos-14
+            bundle: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Download engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: engine-${{ matrix.platform }}
+          path: aura-app/engines/
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2"
+      - name: Build Tauri bundle
+        run: cargo tauri build --bundles ${{ matrix.bundle }}
+        working-directory: aura-app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aura-${{ matrix.platform }}-${{ matrix.bundle }}
+          path: aura-app/target/release/bundle/

@@ -1,0 +1,15 @@
+[package]
+name = "aura-silo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rusqlite = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
+url = { workspace = true }
+thiserror = { workspace = true }
+dirs = { workspace = true }
+keyring = { workspace = true }

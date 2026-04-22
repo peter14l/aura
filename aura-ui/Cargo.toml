@@ -1,0 +1,8 @@
+[package]
+name = "aura-ui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slint = { workspace = true }
+image = { workspace = true }

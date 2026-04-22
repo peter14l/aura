@@ -1,0 +1,24 @@
+[package]
+name = "aura-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = { workspace = true, features = ["macos-private-api"] }
+tauri-build = { version = "2", features = [] }
+servo = { workspace = true }
+libloading = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+ed25519-dalek = { workspace = true }
+reqwest = { workspace = true, features = ["stream"] }
+semver = { workspace = true }
+sha2 = { workspace = true }
+aura-net = { path = "../aura-net" }
+
+[lib]
+name = "aura_app_lib"
+crate-type = ["cdylib", "rlib"]
