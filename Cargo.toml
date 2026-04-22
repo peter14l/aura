@@ -51,3 +51,7 @@ tracing-subscriber = "0.3"
 dirs             = "5"
 semver           = "1"
 image            = "0.25"
+
+[patch.crates-io]
+# Pin rmp to 0.8.11 to fix breakage in rmp-serde 0.15.x
+rmp = { git = "https://github.com/3Hren/msgpack-rust", tag = "rmp-0.8.11" }
