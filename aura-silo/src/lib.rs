@@ -32,7 +32,8 @@ pub struct SiloManager {
 
 impl SiloManager {
     pub fn init(base_dir: PathBuf) -> Result<Self, SiloError> {
-        let entry = keyring::Entry::new("aura-browser", "master-key").map_err(|_| SiloError::EncryptionFailed)?;
+        let entry = keyring::Entry::new("aura-browser", "master-key")
+            .map_err(|_| SiloError::EncryptionFailed)?;
 
         let master_key = match entry.get_password() {
             Ok(pw) => {
@@ -46,12 +47,17 @@ impl SiloManager {
                 let mut key = [0u8; 32];
                 rand::thread_rng().fill_bytes(&mut key);
                 let encoded = hex::encode(key);
-                entry.set_password(&encoded).map_err(|_| SiloError::EncryptionFailed)?;
+                entry
+                    .set_password(&encoded)
+                    .map_err(|_| SiloError::EncryptionFailed)?;
                 key
             }
         };
 
-        Ok(Self { base_dir, master_key })
+        Ok(Self {
+            base_dir,
+            master_key,
+        })
     }
 
     /// Derive per-domain silo path

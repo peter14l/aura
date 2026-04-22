@@ -78,9 +78,8 @@ fn load_or_fetch_lists(urls: &[&str]) -> Vec<String> {
         let content = if use_cache {
             std::fs::read_to_string(&cache_path).unwrap()
         } else {
-            let body = rt.block_on(async {
-                reqwest::get(*url).await.unwrap().text().await.unwrap()
-            });
+            let body =
+                rt.block_on(async { reqwest::get(*url).await.unwrap().text().await.unwrap() });
             std::fs::write(&cache_path, &body).unwrap();
             body
         };

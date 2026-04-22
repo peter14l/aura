@@ -35,18 +35,26 @@ impl AiEngine {
             .with_cache_dir(aura_model_dir())
             .build()
             .map_err(|_| AiError::Api)?;
-        
+
         let repo = api.model("Qwen/Qwen2.5-1.5B-Instruct-GGUF".to_string());
-        let model_path = repo.get("qwen2.5-1.5b-instruct-q4_0.gguf").await.map_err(|_| AiError::Api)?;
+        let model_path = repo
+            .get("qwen2.5-1.5b-instruct-q4_0.gguf")
+            .await
+            .map_err(|_| AiError::Api)?;
 
         let mut file = std::fs::File::open(&model_path)?;
         let gguf = candle_core::quantized::gguf_file::Content::read(&mut file)?;
-        
+
         // Note: candle-transformers version might vary, this is a general structure
         let model = Model::from_gguf(gguf, &mut file, &device)?;
-        let tokenizer = Tokenizer::from_pretrained("Qwen/Qwen2.5-1.5B-Instruct", None).map_err(|e| AiError::Tokenizer(e))?;
+        let tokenizer = Tokenizer::from_pretrained("Qwen/Qwen2.5-1.5B-Instruct", None)
+            .map_err(|e| AiError::Tokenizer(e))?;
 
-        Ok(Self { model, tokenizer, device })
+        Ok(Self {
+            model,
+            tokenizer,
+            device,
+        })
     }
 
     pub async fn summarise(&mut self, html: &str) -> Result<Vec<String>, AiError> {
@@ -58,7 +66,10 @@ impl AiEngine {
             truncated
         );
 
-        let tokens = self.tokenizer.encode(prompt, true).map_err(|e| AiError::Tokenizer(e))?;
+        let tokens = self
+            .tokenizer
+            .encode(prompt, true)
+            .map_err(|e| AiError::Tokenizer(e))?;
         let input = Tensor::new(tokens.get_ids(), &self.device)?.unsqueeze(0)?;
 
         // Simple greedy generation (simplified for skeleton)
@@ -71,7 +82,10 @@ impl AiEngine {
             break; // Placeholder for actual generation loop
         }
 
-        let output = self.tokenizer.decode(&generated, true).map_err(|e| AiError::Tokenizer(e))?;
+        let output = self
+            .tokenizer
+            .decode(&generated, true)
+            .map_err(|e| AiError::Tokenizer(e))?;
         Ok(parse_bullets(&output))
     }
 }
@@ -83,7 +97,10 @@ fn aura_model_dir() -> PathBuf {
 fn parse_bullets(text: &str) -> Vec<String> {
     text.lines()
         .filter(|l| l.starts_with("·") || l.starts_with("-") || l.starts_with("*"))
-        .map(|l| l.trim_start_matches(|c| c == '·' || c == '-' || c == '*' || c == ' ').to_string())
+        .map(|l| {
+            l.trim_start_matches(|c| c == '·' || c == '-' || c == '*' || c == ' ')
+                .to_string()
+        })
         .collect()
 }
 
