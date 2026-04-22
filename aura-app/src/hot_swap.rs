@@ -1,10 +1,10 @@
 // aura-app/src/hot_swap.rs
 
+use libloading::{Library, Symbol};
+use std::ffi::{c_char, c_void, CString};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use std::path::PathBuf;
-use libloading::{Library, Symbol};
-use std::ffi::{c_void, c_char, CString};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SwapError {
@@ -47,9 +47,12 @@ unsafe impl Sync for LoadedEngine {}
 impl LoadedEngine {
     pub fn navigate(&self, url: &str) -> Result<(), SwapError> {
         unsafe {
-            let navigate_fn: Symbol<unsafe extern "C" fn(*mut EngineContext, *const c_char) -> bool> =
-                self.lib.get(b"aura_engine_navigate")?;
-            let c_url = CString::new(url).map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid URL string"))?;
+            let navigate_fn: Symbol<
+                unsafe extern "C" fn(*mut EngineContext, *const c_char) -> bool,
+            > = self.lib.get(b"aura_engine_navigate")?;
+            let c_url = CString::new(url).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid URL string")
+            })?;
             if !navigate_fn(self.ctx, c_url.as_ptr()) {
                 return Err(SwapError::InitFailed);
             }
@@ -70,7 +73,10 @@ impl LoadedEngine {
 impl Drop for LoadedEngine {
     fn drop(&mut self) {
         unsafe {
-            if let Ok(destroy_fn) = self.lib.get::<unsafe extern "C" fn(*mut EngineContext)>(b"aura_engine_destroy") {
+            if let Ok(destroy_fn) = self
+                .lib
+                .get::<unsafe extern "C" fn(*mut EngineContext)>(b"aura_engine_destroy")
+            {
                 destroy_fn(self.ctx);
             }
         }
@@ -100,14 +106,14 @@ impl HotSwapManager {
             let lib = Library::new(&path)?;
             let cold_init: Symbol<unsafe extern "C" fn(*const EngineConfig) -> *mut EngineContext> =
                 lib.get(b"aura_engine_cold_init")?;
-            
+
             let config = EngineConfig { placeholder: true };
             let ctx = cold_init(&config);
-            
+
             if ctx.is_null() {
                 return Err(SwapError::InitFailed);
             }
-            
+
             Ok(LoadedEngine { lib, ctx })
         }
     }

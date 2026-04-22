@@ -2,8 +2,8 @@
 
 use candle_core::{Device, Tensor};
 use candle_transformers::models::qwen2::{Config, Model};
-use tokenizers::Tokenizer;
 use std::path::PathBuf;
+use tokenizers::Tokenizer;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AiError {

@@ -1,7 +1,7 @@
 // aura-silo/src/lib.rs
 
-use rusqlite::{Connection, params};
-use sha2::{Sha256, Digest};
+use rusqlite::{params, Connection};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
@@ -27,12 +27,15 @@ pub struct Cookie {
 
 pub struct SiloManager {
     base_dir: PathBuf,
-    master_key: [u8; 32],   // AES-256 key from OS keychain
+    master_key: [u8; 32], // AES-256 key from OS keychain
 }
 
 impl SiloManager {
     pub fn new(base_dir: PathBuf, master_key: [u8; 32]) -> Self {
-        Self { base_dir, master_key }
+        Self {
+            base_dir,
+            master_key,
+        }
     }
 
     /// Derive per-domain silo path
@@ -70,9 +73,13 @@ impl SiloManager {
              (host, name, value, path, secure, http_only, same_site, expiry_utc)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                cookie.host, cookie.name, encrypted_value,
-                cookie.path, cookie.secure as i32,
-                cookie.http_only as i32, cookie.same_site.as_str(),
+                cookie.host,
+                cookie.name,
+                encrypted_value,
+                cookie.path,
+                cookie.secure as i32,
+                cookie.http_only as i32,
+                cookie.same_site.as_str(),
                 cookie.expiry_utc,
             ],
         )?;
@@ -87,10 +94,11 @@ impl SiloManager {
             if path.extension().map_or(false, |e| e == "db") {
                 // Check pinned status
                 if let Ok(conn) = Connection::open(&path) {
-                    let pinned: i32 = conn.query_row(
-                        "SELECT value FROM silo_meta WHERE key='pinned'",
-                        [], |r| r.get(0)
-                    ).unwrap_or(0);
+                    let pinned: i32 = conn
+                        .query_row("SELECT value FROM silo_meta WHERE key='pinned'", [], |r| {
+                            r.get(0)
+                        })
+                        .unwrap_or(0);
 
                     if pinned == 0 {
                         drop(conn);
@@ -104,7 +112,10 @@ impl SiloManager {
     }
 
     fn encrypt_value(&self, plaintext: &[u8]) -> Result<Vec<u8>, SiloError> {
-        use aes_gcm::{Aes256Gcm, Key, Nonce, aead::{Aead, NewAead}};
+        use aes_gcm::{
+            aead::{Aead, NewAead},
+            Aes256Gcm, Key, Nonce,
+        };
         use rand::RngCore;
 
         let key = Key::from_slice(&self.master_key);
@@ -113,7 +124,9 @@ impl SiloManager {
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
 
-        let ciphertext = cipher.encrypt(&nonce, plaintext).map_err(|_| SiloError::EncryptionFailed)?;
+        let ciphertext = cipher
+            .encrypt(&nonce, plaintext)
+            .map_err(|_| SiloError::EncryptionFailed)?;
 
         // Prepend nonce so we can decrypt later: [12-byte nonce][ciphertext]
         let mut result = nonce_bytes.to_vec();

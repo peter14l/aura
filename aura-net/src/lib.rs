@@ -20,7 +20,7 @@ static ADBLOCK: Lazy<AdblockEngine> = Lazy::new(|| {
 pub enum InterceptDecision {
     Allow(Url),
     Block { reason: &'static str },
-    Redirect(Url),  // For HTTPS upgrades
+    Redirect(Url), // For HTTPS upgrades
 }
 
 pub async fn intercept(
@@ -28,11 +28,8 @@ pub async fn intercept(
     source_url: &Url,
     resource_type: &str,
 ) -> InterceptDecision {
-    let block_result = ADBLOCK.check_network_urls(
-        request_url.as_str(),
-        source_url.as_str(),
-        resource_type,
-    );
+    let block_result =
+        ADBLOCK.check_network_urls(request_url.as_str(), source_url.as_str(), resource_type);
 
     if block_result.matched {
         return InterceptDecision::Block {
@@ -42,7 +39,12 @@ pub async fn intercept(
 
     // Force HTTPS upgrade
     if request_url.scheme() == "http" {
-        if let Ok(https) = request_url.clone().into_string().replace("http://", "https://").parse::<Url>() {
+        if let Ok(https) = request_url
+            .clone()
+            .into_string()
+            .replace("http://", "https://")
+            .parse::<Url>()
+        {
             return InterceptDecision::Redirect(https);
         }
     }

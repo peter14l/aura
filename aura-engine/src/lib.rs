@@ -1,5 +1,5 @@
 // aura-engine/src/lib.rs
-use std::ffi::{c_void, c_char, CStr};
+use std::ffi::{c_char, c_void, CStr};
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
@@ -26,7 +26,9 @@ impl EngineContext {
 
     pub fn restore_from_snapshot(&mut self, snapshot: &EngineSnapshot) -> bool {
         if !snapshot.current_url.is_null() {
-            let url = unsafe { CStr::from_ptr(snapshot.current_url) }.to_string_lossy().into_owned();
+            let url = unsafe { CStr::from_ptr(snapshot.current_url) }
+                .to_string_lossy()
+                .into_owned();
             self.current_url = url;
         }
         true
@@ -34,10 +36,12 @@ impl EngineContext {
 
     pub fn serialise_state(&self) -> EngineSnapshot {
         // In a real implementation, we'd need to manage the lifecycle of this C string
-        let url_ptr = std::ffi::CString::new(self.current_url.clone()).unwrap().into_raw();
-        EngineSnapshot { 
+        let url_ptr = std::ffi::CString::new(self.current_url.clone())
+            .unwrap()
+            .into_raw();
+        EngineSnapshot {
             current_url: url_ptr,
-            placeholder: true 
+            placeholder: true,
         }
     }
 
@@ -47,11 +51,9 @@ impl EngineContext {
         true
     }
 
-    pub fn release_gpu_surface(&mut self) {
-    }
+    pub fn release_gpu_surface(&mut self) {}
 
-    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-    }
+    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {}
 }
 
 #[no_mangle]
@@ -76,7 +78,9 @@ pub extern "C" fn aura_engine_warm_init(
 
 #[no_mangle]
 pub extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
-    if ctx.is_null() || url.is_null() { return false; }
+    if ctx.is_null() || url.is_null() {
+        return false;
+    }
     let ctx = unsafe { &mut *ctx };
     let url_str = unsafe { CStr::from_ptr(url) }.to_string_lossy();
     ctx.navigate(&url_str)
@@ -95,10 +99,7 @@ pub extern "C" fn aura_engine_freeze(
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_paint(
-    ctx: *mut EngineContext,
-    surface: *mut c_void,
-) {
+pub extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
     let ctx = unsafe { &mut *ctx };
     ctx.paint_to_surface(surface)
 }
