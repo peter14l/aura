@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 tauri = { workspace = true, features = ["macos-private-api"] }
-tauri-build = { version = "2", features = [] }
 servo = { workspace = true }
 libloading = { workspace = true }
 tokio = { workspace = true }
@@ -18,6 +17,9 @@ reqwest = { workspace = true, features = ["stream"] }
 semver = { workspace = true }
 sha2 = { workspace = true }
 aura-net = { path = "../aura-net" }
+
+[build-dependencies]
+tauri-build = { workspace = true }
 
 [lib]
 name = "aura_app_lib"

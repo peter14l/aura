@@ -12,6 +12,7 @@ resolver = "2"
 [workspace.dependencies]
 # Core
 tauri            = { version = "2" }
+tauri-build      = { version = "2" }
 servo            = { git = "https://github.com/servo/servo", branch = "main", package = "servo" }
 libloading       = "0.8"
 tokio            = { version = "1", features = ["full"] }
