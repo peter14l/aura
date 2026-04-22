@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+slint::include_modules!();
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub fn run() {
+    let ui = MainUI::new().unwrap();
+    
+    ui.on_navigate(|url| {
+        println!("Navigating to: {}", url);
+    });
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+    ui.run().unwrap();
 }

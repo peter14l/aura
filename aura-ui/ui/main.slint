@@ -1,0 +1,34 @@
+import { AuraTheme } from "tokens.slint";
+import { CommandBar } from "command-bar.slint";
+import { Constellation, TabNode } from "constellation.slint";
+import { BreatheOverlay } from "breathe-overlay.slint";
+
+export component MainUI {
+    in property <bool> command-bar-visible: false;
+    in property <bool> constellation-visible: false;
+    in property <bool> breathe-visible: false;
+    
+    in property <[TabNode]> tabs;
+    in property <[string]> breathe-bullets;
+    
+    callback navigate(string);
+    callback tab-selected(int);
+
+    background: AuraTheme.obsidian.with-alpha(0.01); // Subtle base for transparency
+
+    CommandBar {
+        visible: command-bar-visible;
+        submitted(url) => { root.navigate(url); }
+    }
+
+    Constellation {
+        visible: constellation-visible;
+        tabs: tabs;
+        tab-selected(i) => { root.tab-selected(i); }
+    }
+
+    BreatheOverlay {
+        visible: breathe-visible;
+        bullets: breathe-bullets;
+    }
+}

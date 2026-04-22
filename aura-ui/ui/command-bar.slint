@@ -1,0 +1,40 @@
+import { AuraTheme } from "tokens.slint";
+
+export component CommandBar {
+    in property <bool> visible: false;
+    in-out property <string> query;
+    callback submitted(string);
+
+    opacity: visible ? 1.0 : 0.0;
+    animate opacity { duration: AuraTheme.breathe; easing: AuraTheme.ease-breathe; }
+
+    x: (parent.width - self.width) / 2;
+    y: parent.height * 0.32;   
+    width: min(parent.width * 0.55, 680px);
+    height: 52px;
+
+    Rectangle {
+        background: AuraTheme.glass;
+        border-radius: 26px;
+
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 16px;
+            spacing: 12px;
+
+            Rectangle {
+                width: 8px; height: 8px;
+                border-radius: 4px;
+                background: AuraTheme.sage;
+            }
+
+            TextInput {
+                text <=> query;
+                font-size: 17px;
+                color: AuraTheme.base;
+                vertical-alignment: center;
+                accepted => { submitted(self.text); }
+            }
+        }
+    }
+}

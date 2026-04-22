@@ -6,3 +6,6 @@ edition = "2021"
 [dependencies]
 slint = { workspace = true }
 image = { workspace = true }
+
+[build-dependencies]
+slint-build = "1.7"

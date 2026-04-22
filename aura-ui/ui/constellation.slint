@@ -1,0 +1,57 @@
+import { AuraTheme } from "tokens.slint";
+
+export struct TabNode {
+    title: string,
+    favicon: image,
+    glow-color: color,
+}
+
+export component TabOrb {
+    in property <TabNode> node;
+    in property <bool> active: false;
+    callback clicked();
+
+    width: active ? 44px : 32px;
+    height: active ? 44px : 32px;
+    animate width, height { duration: 220ms; easing: AuraTheme.ease-breathe; }
+
+    Rectangle {
+        border-radius: self.width / 2;
+        background: node.glow-color.with-alpha(0.4);
+        
+        Image { 
+            source: node.favicon; 
+            width: parent.width * 0.6; 
+            height: parent.height * 0.6; 
+        }
+
+        TouchArea {
+            clicked => { root.clicked(); }
+        }
+    }
+}
+
+export component Constellation {
+    in property <[TabNode]> tabs;
+    in property <bool> visible: false;
+    callback tab-selected(int);
+
+    x: 0;
+    y: 0;
+    width: 80px;
+    height: 100%;
+    
+    opacity: visible ? 1.0 : 0.0;
+    animate opacity { duration: 300ms; }
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 16px;
+        alignment: center;
+
+        for tab[i] in tabs : TabOrb {
+            node: tab;
+            clicked => { tab-selected(i); }
+        }
+    }
+}
