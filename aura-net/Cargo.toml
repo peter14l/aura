@@ -9,3 +9,6 @@ url = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 once_cell = { workspace = true }
+dirs = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }

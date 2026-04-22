@@ -27,15 +27,31 @@ pub struct Cookie {
 
 pub struct SiloManager {
     base_dir: PathBuf,
-    master_key: [u8; 32], // AES-256 key from OS keychain
+    master_key: [u8; 32],
 }
 
 impl SiloManager {
-    pub fn new(base_dir: PathBuf, master_key: [u8; 32]) -> Self {
-        Self {
-            base_dir,
-            master_key,
-        }
+    pub fn init(base_dir: PathBuf) -> Result<Self, SiloError> {
+        let entry = keyring::Entry::new("aura-browser", "master-key").map_err(|_| SiloError::EncryptionFailed)?;
+
+        let master_key = match entry.get_password() {
+            Ok(pw) => {
+                let decoded = hex::decode(pw).map_err(|_| SiloError::EncryptionFailed)?;
+                let mut key = [0u8; 32];
+                key.copy_from_slice(&decoded);
+                key
+            }
+            Err(_) => {
+                // Generate new master key
+                let mut key = [0u8; 32];
+                rand::thread_rng().fill_bytes(&mut key);
+                let encoded = hex::encode(key);
+                entry.set_password(&encoded).map_err(|_| SiloError::EncryptionFailed)?;
+                key
+            }
+        };
+
+        Ok(Self { base_dir, master_key })
     }
 
     /// Derive per-domain silo path
