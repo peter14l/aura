@@ -54,4 +54,4 @@ image            = "0.25"
 
 [patch.crates-io]
 # Pin rmp to 0.8.11 to fix breakage in rmp-serde 0.15.x
-rmp = { git = "https://github.com/3Hren/msgpack-rust", tag = "rmp-0.8.11" }
+rmp = { git = "https://github.com/3Hren/msgpack-rust", tag = "rmp/v0.8.11" }
