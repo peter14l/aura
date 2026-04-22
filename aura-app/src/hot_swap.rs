@@ -126,4 +126,37 @@ impl HotSwapManager {
             Err(SwapError::InitFailed)
         }
     }
+
+    pub async fn perform_handoff(&self, new_dylib: PathBuf) -> Result<(), SwapError> {
+        // Phase A: Load shadow instance
+        let new_engine = self.load_engine(new_dylib).await?;
+
+        // Phase B: Serialise state
+        let mut guard = self.current.lock().await;
+        if let Some(old_engine) = guard.as_ref() {
+            unsafe {
+                let mut snapshot = EngineSnapshot {
+                    current_url: std::ptr::null_mut(),
+                    placeholder: true,
+                };
+                let freeze_fn: Symbol<
+                    unsafe extern "C" fn(*mut EngineContext, *mut EngineSnapshot) -> bool,
+                > = old_engine.lib.get(b"aura_engine_freeze")?;
+                freeze_fn(old_engine.ctx, &mut snapshot);
+
+                // Phase C: Swap
+                // (In a real implementation, we'd signal the compositor here)
+
+                let warm_init: Symbol<
+                    unsafe extern "C" fn(*mut EngineContext, *const EngineSnapshot) -> bool,
+                > = new_engine.lib.get(b"aura_engine_warm_init")?;
+                warm_init(new_engine.ctx, &snapshot);
+            }
+        }
+
+        // Finalize swap
+        *guard = Some(new_engine);
+
+        Ok(())
+    }
 }
