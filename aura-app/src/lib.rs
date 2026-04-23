@@ -82,6 +82,14 @@ pub fn run() {
     tauri::Builder::default()
         .manage(state)
         .setup(move |app| {
+            // Initialize Adblock in background
+            tauri::async_runtime::spawn(async move {
+                aura_net::init_adblock(&[
+                    "https://easylist.to/easylist/easylist.txt",
+                    "https://easylist.to/easylist/easyprivacy.txt",
+                ]).await;
+            });
+
             // Initial engine load
             let engine_path = if cfg!(windows) {
                 "./engines/aura_engine.dll"

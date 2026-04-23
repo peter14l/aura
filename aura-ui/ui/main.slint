@@ -2,19 +2,27 @@ import { AuraTheme } from "tokens.slint";
 import { CommandBar } from "command-bar.slint";
 import { Constellation, TabNode } from "constellation.slint";
 import { BreatheOverlay } from "breathe-overlay.slint";
+import { AddressGhost } from "address-ghost.slint";
 
 export component MainUI inherits Window {
     in property <bool> command-bar-visible: false;
     in property <bool> constellation-visible: false;
     in property <bool> breathe-visible: false;
+    in property <bool> address-ghost-visible: false;
     
+    in property <string> active-url: "aura://home";
     in property <[TabNode]> tabs;
     in property <[string]> breathe-bullets;
     
     callback navigate(string);
     callback tab-selected(int);
 
-    background: AuraTheme.obsidian.with-alpha(0.01); // Subtle base for transparency
+    background: AuraTheme.obsidian.with-alpha(0.01);
+
+    AddressGhost {
+        visible: address-ghost-visible;
+        url: active-url;
+    }
 
     CommandBar {
         show: command-bar-visible;
