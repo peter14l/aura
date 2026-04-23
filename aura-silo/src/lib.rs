@@ -1,10 +1,13 @@
 // aura-silo/src/lib.rs
 
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm, Key, Nonce,
+};
+use rand::RngCore;
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use rand::RngCore;
-use aes_gcm::{Aes256Gcm, Key, Nonce, aead::{Aead, KeyInit}};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SiloError {
