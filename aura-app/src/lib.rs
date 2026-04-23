@@ -2,9 +2,11 @@
 
 pub mod hot_swap;
 
+use aura_ui::MainUI;
 use hot_swap::{HotSwapManager, SwapError};
+use slint::ComponentHandle;
 use std::sync::Arc;
-use tauri::{Manager, State};
+use tauri::{AppHandle, Manager, State};
 use url::Url;
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -21,21 +23,21 @@ impl From<SwapError> for AuraError {
     }
 }
 
-#[tauri::command]
-async fn navigate(url: String, manager: State<'_, Arc<HotSwapManager>>) -> Result<(), AuraError> {
-    // 1. Validate & sanitise URL
-    let parsed = Url::parse(&url).map_err(|_| AuraError::InvalidUrl(url.clone()))?;
+pub struct AppState {
+    pub hot_swap: Arc<HotSwapManager>,
+    pub ui: MainUI,
+}
 
-    // 2. Pass through network interceptor (adblock)
-    // For now, we'll assume a source_url and resource_type
+#[tauri::command]
+async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraError> {
+    let parsed = Url::parse(&url).map_err(|_| AuraError::InvalidUrl(url.clone()))?;
     let source_url = parsed.clone();
     let filtered = aura_net::intercept(&parsed, &source_url, "main_frame").await;
 
     match filtered {
         aura_net::InterceptDecision::Allow(target_url)
         | aura_net::InterceptDecision::Redirect(target_url) => {
-            // 3. Forward to hot-loaded engine
-            manager.navigate(target_url.as_str()).await?;
+            state.hot_swap.navigate(target_url.as_str()).await?;
             Ok(())
         }
         aura_net::InterceptDecision::Block { reason } => {
@@ -44,32 +46,64 @@ async fn navigate(url: String, manager: State<'_, Arc<HotSwapManager>>) -> Resul
     }
 }
 
-#[tokio::main]
-pub async fn run() {
-    let manager = Arc::new(HotSwapManager::new());
+#[tauri::command]
+fn toggle_command_bar(state: State<'_, AppState>) {
+    let current = state.ui.get_command_bar_visible();
+    state.ui.set_command_bar_visible(!current);
+}
 
-    // Attempt to load the initial engine
-    let engine_path = if cfg!(windows) {
-        "./engines/aura_engine.dll"
-    } else if cfg!(target_os = "macos") {
-        "./engines/libaura_engine.dylib"
-    } else {
-        "./engines/libaura_engine.so"
+pub fn run() {
+    let ui = aura_ui::create_ui();
+    let hot_swap = Arc::new(HotSwapManager::new());
+
+    let state = AppState {
+        hot_swap: hot_swap.clone(),
+        ui: ui.clone(),
     };
 
-    let _ = manager.load_initial_engine(engine_path.into()).await;
+    // Initialize Silo
+    let silo_dir = dirs::home_dir()
+        .expect("Could not find home directory")
+        .join(".aura")
+        .join("silos");
+    let _silo_manager = aura_silo::SiloManager::init(silo_dir).expect("Failed to initialize Silo");
 
     tauri::Builder::default()
-        .manage(manager)
-        .setup(|app| {
-            let win = app.get_webview_window("main").expect("Could not find main webview window");
+        .manage(state)
+        .setup(move |app| {
+            // Initial engine load
+            let engine_path = if cfg!(windows) {
+                "./engines/aura_engine.dll"
+            } else if cfg!(target_os = "macos") {
+                "./engines/libaura_engine.dylib"
+            } else {
+                "./engines/libaura_engine.so"
+            };
 
-            // Borderless & Transparent
-            let _ = win.set_decorations(false);            let _ = win.set_shadow(false);
+            let hs = hot_swap.clone();
+            let path = std::path::PathBuf::from(engine_path);
+            tauri::async_runtime::spawn(async move {
+                let _ = hs.load_initial_engine(path).await;
+            });
+
+            // Set up UI callbacks
+            let ui_handle = ui.as_weak();
+            let app_handle = app.handle().clone();
+            ui.on_navigate(move |url| {
+                let app_handle = app_handle.clone();
+                let url = url.to_string();
+                tauri::async_runtime::spawn(async move {
+                    let state: State<'_, AppState> = app_handle.state();
+                    let _ = navigate(url, state).await;
+                });
+            });
+
+            // Show Slint UI
+            ui.show().expect("Failed to show Slint UI");
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![navigate])
+        .invoke_handler(tauri::generate_handler![navigate, toggle_command_bar])
         .run(tauri::generate_context!())
         .expect("Aura failed to launch");
 }

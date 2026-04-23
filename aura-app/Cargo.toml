@@ -17,6 +17,9 @@ reqwest = { workspace = true, features = ["stream"] }
 semver = { workspace = true }
 sha2 = { workspace = true }
 aura-net = { path = "../aura-net" }
+aura-ui = { path = "../aura-ui" }
+aura-silo = { path = "../aura-silo" }
+aura-ai = { path = "../aura-ai" }
 
 [build-dependencies]
 tauri-build = { workspace = true }
