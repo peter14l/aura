@@ -1,7 +1,7 @@
 // aura-ai/src/lib.rs
 
 use candle_core::{Device, Tensor};
-use candle_transformers::models::qwen2::{Config, Model};
+use candle_transformers::models::quantized_qwen2::ModelWeights as Model;
 use std::path::PathBuf;
 use tokenizers::Tokenizer;
 
@@ -74,7 +74,7 @@ impl AiEngine {
         let mut generated_ids = Vec::new();
         let eos_token_id = self.tokenizer.token_to_id("<|im_end|>").unwrap_or(0);
 
-        for i in 0..180 {
+        for _i in 0..180 {
             let input = Tensor::new(&tokens_ids[..], &self.device)?.unsqueeze(0)?;
             let logits = self.model.forward(&input, tokens_ids.len() - 1)?;
             let logits = logits.squeeze(0)?;
@@ -125,7 +125,7 @@ fn parse_bullets(text: &str) -> Vec<String> {
         })
         .map(|l| {
             l.trim_start_matches(|c: char| {
-                c == '·' || c == '-' || c == '*' || c == ' ' || c.is_digit(10) || c == '.'
+                c == '·' || c == '-' || c == '*' || c == ' ' || c.is_ascii_digit() || c == '.'
             })
             .trim()
             .to_string()

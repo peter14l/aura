@@ -34,8 +34,8 @@ pub async fn init_adblock(urls: &[&str]) {
         let cache_path = cache_dir.join(file_name);
 
         let content = if let Ok(metadata) = std::fs::metadata(&cache_path) {
-            if metadata.modified().map_or(false, |m| {
-                m.elapsed().map_or(false, |e| e.as_secs() < 86400)
+            if metadata.modified().is_ok_and(|m| {
+                m.elapsed().is_ok_and(|e| e.as_secs() < 86400)
             }) {
                 std::fs::read_to_string(&cache_path).ok()
             } else {
@@ -61,7 +61,7 @@ pub async fn init_adblock(urls: &[&str]) {
             }
         };
         filter_set.add_filters(
-            &content.lines().collect::<Vec<_>>(),
+            content.lines().collect::<Vec<_>>().as_slice(),
             ParseOptions::default(),
         );
     }
@@ -77,14 +77,13 @@ pub async fn intercept(
     resource_type: &str,
 ) -> InterceptDecision {
     // Force HTTPS upgrade
-    if request_url.scheme() == "http" {
-        if let Ok(https) = request_url
+    if request_url.scheme() == "http"
+        && let Ok(https) = request_url
             .to_string()
             .replace("http://", "https://")
             .parse::<Url>()
-        {
-            return InterceptDecision::Redirect(https);
-        }
+    {
+        return InterceptDecision::Redirect(https);
     }
 
     let guard = NET_STATE.read().await;

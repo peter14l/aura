@@ -2,9 +2,6 @@
 
 slint::include_modules!();
 
-pub use MainUI;
-pub use TabNode;
-
 pub fn create_ui() -> MainUI {
     MainUI::new().expect("Failed to initialize MainUI")
 }

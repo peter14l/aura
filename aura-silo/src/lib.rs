@@ -58,7 +58,7 @@ impl SiloManager {
                 } else {
                     // Generate new master key and try to save it
                     let mut key = [0u8; 32];
-                    rand::thread_rng().fill_bytes(&mut key);
+                    rand::rng().fill_bytes(&mut key);
                     let encoded = hex::encode(key);
                     if let Ok(e) = keyring::Entry::new("aura-browser", "master-key") {
                         let _ = e.set_password(&encoded);
@@ -151,7 +151,7 @@ impl SiloManager {
         let cipher =
             Aes256Gcm::new_from_slice(&self.master_key).map_err(|_| SiloError::EncryptionFailed)?;
         let mut nonce_bytes = [0u8; 12];
-        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+        rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let ciphertext = cipher

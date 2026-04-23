@@ -57,7 +57,7 @@ export component MainUI inherits Window {
     StatusBar {
         show: status-bar-visible;
         status-text: status-message;
-        y: show ? parent.height - self.height : parent.height;
+        y: self.show ? parent.height - self.height : parent.height;
         animate y { duration: 300ms; easing: AuraTheme.ease-breathe; }
         lotus-clicked => { root.lotus-clicked(); }
     }

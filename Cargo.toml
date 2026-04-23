@@ -41,7 +41,7 @@ candle-core      = { git = "https://github.com/huggingface/candle" }
 candle-nn        = { git = "https://github.com/huggingface/candle" }
 candle-transformers = { git = "https://github.com/huggingface/candle" }
 hf-hub           = { version = "0.5", features = ["tokio"] }
-tokenizers       = "0.22"
+tokenizers       = { version = "0.22", features = ["http", "hf-hub"] }
 scraper          = "0.26"
 
 # Network / Adblock

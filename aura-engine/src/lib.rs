@@ -1,6 +1,5 @@
 // aura-engine/src/lib.rs
 use std::ffi::{CStr, CString, c_char, c_void};
-use std::sync::Arc;
 use url::Url;
 
 /// Opaque handle passed across FFI boundary
@@ -33,7 +32,7 @@ pub struct EngineSnapshot {
 
 impl EngineContext {
     pub fn new_cold(config: &EngineConfig) -> Self {
-        let ua = if !config.user_agent.is_null() {
+        let _ua = if !config.user_agent.is_null() {
             unsafe {
                 CStr::from_ptr(config.user_agent)
                     .to_string_lossy()
@@ -78,12 +77,12 @@ impl EngineContext {
 
     pub fn navigate(&mut self, url_str: &str) -> bool {
         self.current_url = url_str.to_string();
-        if let Ok(url) = Url::parse(url_str) {
-            if let Some(ref mut instance) = self.servo {
-                instance.url = url.to_string();
-                // Real implementation: servo.load_url(url)
-                return true;
-            }
+        if let Ok(url) = Url::parse(url_str)
+            && let Some(ref mut instance) = self.servo
+        {
+            instance.url = url.to_string();
+            // Real implementation: servo.load_url(url)
+            return true;
         }
         false
     }
@@ -94,25 +93,25 @@ impl EngineContext {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn aura_engine_version() -> *const c_char {
     c"1.4.2".as_ptr()
 }
 
 /// # Safety
 /// Caller must ensure config is a valid pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
     if config.is_null() {
         return std::ptr::null_mut();
     }
-    let ctx = Box::new(EngineContext::new_cold(&*config));
+    let ctx = unsafe { Box::new(EngineContext::new_cold(&*config)) };
     Box::into_raw(ctx)
 }
 
 /// # Safety
 /// Caller must ensure ctx and snapshot are valid pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
     snapshot: *const EngineSnapshot,
@@ -120,25 +119,25 @@ pub unsafe extern "C" fn aura_engine_warm_init(
     if ctx.is_null() || snapshot.is_null() {
         return false;
     }
-    let ctx = &mut *ctx;
-    ctx.restore_from_snapshot(&*snapshot)
+    let ctx = unsafe { &mut *ctx };
+    ctx.restore_from_snapshot(unsafe { &*snapshot })
 }
 
 /// # Safety
 /// Caller must ensure ctx and url are valid pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
     if ctx.is_null() || url.is_null() {
         return false;
     }
-    let ctx = &mut *ctx;
-    let url_str = CStr::from_ptr(url).to_string_lossy();
+    let ctx = unsafe { &mut *ctx };
+    let url_str = unsafe { CStr::from_ptr(url) }.to_string_lossy();
     ctx.navigate(&url_str)
 }
 
 /// # Safety
 /// Caller must ensure ctx and out_snapshot are valid pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
     out_snapshot: *mut EngineSnapshot,
@@ -146,40 +145,40 @@ pub unsafe extern "C" fn aura_engine_freeze(
     if ctx.is_null() || out_snapshot.is_null() {
         return false;
     }
-    let ctx = &mut *ctx;
+    let ctx = unsafe { &mut *ctx };
     let snapshot = ctx.serialise_state();
-    *out_snapshot = snapshot;
+    unsafe { *out_snapshot = snapshot };
     true
 }
 
 /// # Safety
 /// Caller must ensure ctx and surface are valid pointers.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
     if ctx.is_null() {
         return;
     }
-    let ctx = &mut *ctx;
+    let ctx = unsafe { &mut *ctx };
     ctx.paint_to_surface(surface)
 }
 
 /// # Safety
 /// Caller must take ownership of the returned pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     if !ctx.is_null() {
-        drop(Box::from_raw(ctx))
+        unsafe { drop(Box::from_raw(ctx)) }
     }
 }
 
 /// # Safety
 /// Caller must ensure snapshot is a valid pointer.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_free_snapshot(snapshot: *mut EngineSnapshot) {
     if !snapshot.is_null() {
-        let s = &*snapshot;
+        let s = unsafe { &*snapshot };
         if !s.current_url.is_null() {
-            drop(CString::from_raw(s.current_url));
+            unsafe { drop(CString::from_raw(s.current_url)) };
         }
     }
 }

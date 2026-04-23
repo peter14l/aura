@@ -5,8 +5,9 @@ use std::ffi::{CString, c_char, c_void};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use thiserror::Error;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum SwapError {
     #[error("Init failed")]
     InitFailed,
@@ -85,6 +86,12 @@ impl Drop for LoadedEngine {
 
 pub struct HotSwapManager {
     current: Arc<Mutex<Option<LoadedEngine>>>,
+}
+
+impl Default for HotSwapManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HotSwapManager {

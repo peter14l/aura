@@ -17,3 +17,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 scraper = { workspace = true }
 aura-net = { path = "../aura-net" }
+dirs = { workspace = true }
