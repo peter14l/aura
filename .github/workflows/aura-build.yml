@@ -38,6 +38,7 @@ jobs:
           sudo apt-get install -y \
             dbus-x11 \
             gnome-keyring \
+            libunwind-dev \
             libglib2.0-dev \
             libssl-dev \
             libdbus-1-dev \
@@ -110,6 +111,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libunwind-dev \
             libglib2.0-dev \
             libssl-dev \
             libdbus-1-dev \
@@ -179,6 +181,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libunwind-dev \
             libglib2.0-dev \
             libssl-dev \
             libdbus-1-dev \
