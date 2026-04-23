@@ -1,8 +1,9 @@
 // aura-net/src/lib.rs
 
-use adblock::engine::Engine as AdblockEngine;
+use adblock::Engine as AdblockEngine;
 use adblock::lists::{FilterSet, ParseOptions};
 use once_cell::sync::Lazy;
+use sha2::Digest;
 use url::Url;
 
 static ADBLOCK: Lazy<AdblockEngine> = Lazy::new(|| {
@@ -40,8 +41,7 @@ pub async fn intercept(
     // Force HTTPS upgrade
     if request_url.scheme() == "http" {
         if let Ok(https) = request_url
-            .clone()
-            .into_string()
+            .to_string()
             .replace("http://", "https://")
             .parse::<Url>()
         {
