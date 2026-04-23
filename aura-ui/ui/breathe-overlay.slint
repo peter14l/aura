@@ -9,11 +9,6 @@ export component BreatheOverlay {
     opacity: show ? 1.0 : 0.0;
     animate opacity { duration: 320ms; easing: ease-in-out; }
 
-    y: 100% - self.height - 24px;
-    x: (100% - self.width) / 2;
-    width: min(60%, 520px);
-    height: 160px;
-
     Rectangle {
         background: AuraTheme.glass;
         border-radius: 20px;

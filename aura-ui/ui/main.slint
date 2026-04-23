@@ -18,6 +18,10 @@ export component MainUI inherits Window {
 
     CommandBar {
         show: command-bar-visible;
+        x: (parent.width - self.width) / 2;
+        y: parent.height * 0.32;
+        width: min(parent.width * 0.55, 680px);
+        height: 52px;
         submitted(url) => { root.navigate(url); }
     }
 
@@ -29,6 +33,10 @@ export component MainUI inherits Window {
 
     BreatheOverlay {
         show: breathe-visible;
+        x: (parent.width - self.width) / 2;
+        y: parent.height - self.height - 24px;
+        width: min(parent.width * 0.6, 520px);
+        height: 160px;
         bullets: breathe-bullets;
     }
 }
