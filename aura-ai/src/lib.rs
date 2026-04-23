@@ -13,8 +13,8 @@ pub enum AiError {
     Tokenizer(#[from] Box<dyn std::error::Error + Send + Sync>),
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("API error")]
-    Api,
+    #[error("API error: {0}")]
+    Api(String),
 }
 
 pub struct AiEngine {
@@ -34,18 +34,17 @@ impl AiEngine {
         let api = hf_hub::api::tokio::ApiBuilder::new()
             .with_cache_dir(aura_model_dir())
             .build()
-            .map_err(|_| AiError::Api)?;
+            .map_err(|e| AiError::Api(e.to_string()))?;
 
         let repo = api.model("Qwen/Qwen2.5-1.5B-Instruct-GGUF".to_string());
         let model_path = repo
             .get("qwen2.5-1.5b-instruct-q4_0.gguf")
             .await
-            .map_err(|_| AiError::Api)?;
+            .map_err(|e| AiError::Api(e.to_string()))?;
 
         let mut file = std::fs::File::open(&model_path)?;
         let gguf = candle_core::quantized::gguf_file::Content::read(&mut file)?;
 
-        // Note: candle-transformers version might vary, this is a general structure
         let model = Model::from_gguf(gguf, &mut file, &device)?;
         let tokenizer = Tokenizer::from_pretrained("Qwen/Qwen2.5-1.5B-Instruct", None)
             .map_err(AiError::Tokenizer)?;
@@ -70,22 +69,39 @@ impl AiEngine {
             .tokenizer
             .encode(prompt, true)
             .map_err(AiError::Tokenizer)?;
-        let input = Tensor::new(tokens.get_ids(), &self.device)?.unsqueeze(0)?;
+        let mut tokens_ids = tokens.get_ids().to_vec();
+        
+        let mut generated_ids = Vec::new();
+        let eos_token_id = self.tokenizer.token_to_id("<|im_end|>").unwrap_or(0);
 
-        // Simple greedy generation (simplified for skeleton)
-        let mut generated = vec![];
-        for _ in 0..180 {
-            let logits = self.model.forward(&input, generated.len())?;
-            // Sampling logic would go here
-            // let next_token = ...
-            // generated.push(next_token);
-            break; // Placeholder for actual generation loop
+        for i in 0..180 {
+            let input = Tensor::new(&tokens_ids[..], &self.device)?.unsqueeze(0)?;
+            let logits = self.model.forward(&input, tokens_ids.len() - 1)?;
+            let logits = logits.squeeze(0)?;
+            let logits = logits.get(logits.dim(0)? - 1)?;
+            
+            // Greedy sampling
+            let next_token_id = logits
+                .to_vec1::<f32>()?
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .map(|(i, _)| i as u32)
+                .unwrap_or(0);
+
+            if next_token_id == eos_token_id {
+                break;
+            }
+
+            tokens_ids.push(next_token_id);
+            generated_ids.push(next_token_id);
         }
 
         let output = self
             .tokenizer
-            .decode(&generated, true)
+            .decode(&generated_ids, true)
             .map_err(AiError::Tokenizer)?;
+        
         Ok(parse_bullets(&output))
     }
 }
@@ -99,24 +115,38 @@ fn aura_model_dir() -> PathBuf {
 
 fn parse_bullets(text: &str) -> Vec<String> {
     text.lines()
-        .filter(|l| l.starts_with('·') || l.starts_with('-') || l.starts_with('*'))
+        .filter(|l| l.trim().starts_with('·') || l.trim().starts_with('-') || l.trim().starts_with('*') || l.trim().starts_with('1') || l.trim().starts_with('2') || l.trim().starts_with('3'))
         .map(|l| {
-            l.trim_start_matches(|c| c == '·' || c == '-' || c == '*' || c == ' ')
+            l.trim_start_matches(|c: char| c == '·' || c == '-' || c == '*' || c == ' ' || c.is_digit(10) || c == '.')
+                .trim()
                 .to_string()
         })
+        .filter(|l| !l.is_empty())
         .collect()
 }
 
 fn extract_main_text(html: &str) -> String {
     use scraper::{Html, Selector};
     let doc = Html::parse_document(html);
-    let fallback_sel = Selector::parse("p").expect("Invalid CSS selector for fallback");
-    doc.select(&fallback_sel)
+    let body_sel = Selector::parse("article p, main p, .content p, [role='main'] p").unwrap();
+    let fallback_sel = Selector::parse("p").unwrap();
+
+    let paragraphs: Vec<String> = doc.select(&body_sel)
         .map(|el| el.text().collect::<String>())
-        .collect::<Vec<_>>()
-        .join(" ")
+        .filter(|t| t.len() > 40)
+        .collect();
+
+    if paragraphs.is_empty() {
+        doc.select(&fallback_sel)
+            .map(|el| el.text().collect::<String>())
+            .collect::<Vec<_>>()
+            .join(" ")
+    } else {
+        paragraphs.join(" ")
+    }
 }
 
 fn truncate_to_tokens(text: &str, max_tokens: usize) -> String {
-    text.chars().take(max_tokens * 4).collect() // Very rough approximation
+    // Very rough approximation: 4 chars per token
+    text.chars().take(max_tokens * 4).collect()
 }
