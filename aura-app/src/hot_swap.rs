@@ -151,6 +151,14 @@ impl HotSwapManager {
                     unsafe extern "C" fn(*mut EngineContext, *const EngineSnapshot) -> bool,
                 > = new_engine.lib.get(b"aura_engine_warm_init")?;
                 warm_init(new_engine.ctx, &snapshot);
+
+                // Clean up snapshot
+                if let Ok(free_fn) = old_engine
+                    .lib
+                    .get::<unsafe extern "C" fn(*mut EngineSnapshot)>(b"aura_engine_free_snapshot")
+                {
+                    free_fn(&mut snapshot);
+                }
             }
         }
 
