@@ -15,7 +15,6 @@ on:
 env:
   RUST_VERSION: "stable"
   CARGO_TERM_COLOR: always
-  BINDGEN_EXTRA_CLANG_ARGS: "-D__x86_64__"
 
 jobs:
   # ── Job 1: Vibe Check (lint + test) ─────────────────────────────────────
@@ -65,9 +64,11 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
-      - name: Set LIBCLANG_PATH
+      - name: Set Linux Environment Variables
         if: runner.os == 'Linux'
-        run: echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+        run: |
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -144,9 +145,11 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
-      - name: Set LIBCLANG_PATH
+      - name: Set Linux Environment Variables
         if: runner.os == 'Linux'
-        run: echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+        run: |
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -220,9 +223,11 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
-      - name: Set LIBCLANG_PATH
+      - name: Set Linux Environment Variables
         if: runner.os == 'Linux'
-        run: echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+        run: |
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
