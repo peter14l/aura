@@ -40,7 +40,7 @@ tokenizers       = "0.19"
 scraper          = "0.19"
 
 # Network / Adblock
-adblock          = { version = "0.8", default-features = false, features = ["embedded-domain-resolver", "full-regex-itp"] }
+adblock          = { version = "0.8", default-features = false, features = ["embedded-domain-resolver", "resource-assembler"] }
 reqwest          = { version = "0.12", features = ["rustls-tls"], default-features = false }
 url              = "2"
 
