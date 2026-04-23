@@ -43,11 +43,11 @@ export component TabOrb {
 
 export component Constellation {
     in property <[TabNode]> tabs;
-    in property <bool> visible: false;
+    in property <bool> show: false;
     callback tab-selected(int);
 
-    x: visible ? 0px : -100px;
-    opacity: visible ? 1.0 : 0.0;
+    x: show ? 0px : -100px;
+    opacity: show ? 1.0 : 0.0;
     animate x, opacity { duration: 400ms; easing: AuraTheme.ease-breathe; }
 
     width: 100px;
