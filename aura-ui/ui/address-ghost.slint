@@ -8,8 +8,6 @@ export component AddressGhost {
     y: show ? 0px : -20px;
     animate opacity, y { duration: 300ms; easing: AuraTheme.ease-breathe; }
 
-    x: (parent.width - self.width) / 2;
-    width: min(parent.width * 0.4, 400px);
     height: 32px;
 
     Rectangle {

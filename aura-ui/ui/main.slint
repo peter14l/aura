@@ -26,13 +26,15 @@ export component MainUI inherits Window {
     AddressGhost {
         show: address-ghost-visible;
         url: active-url;
+        x: (parent.width - self.width) / 2;
+        width: min(parent.width * 40%, 400px);
     }
 
     CommandBar {
         show: command-bar-visible;
         x: (parent.width - self.width) / 2;
-        y: parent.height * 0.32;
-        width: min(parent.width * 0.55, 680px);
+        y: parent.height * 32%;
+        width: min(parent.width * 55%, 680px);
         height: 52px;
         submitted(url) => { root.navigate(url); }
     }
@@ -47,7 +49,7 @@ export component MainUI inherits Window {
         show: breathe-visible;
         x: (parent.width - self.width) / 2;
         y: parent.height - self.height - 24px;
-        width: min(parent.width * 0.6, 520px);
+        width: min(parent.width * 60%, 520px);
         height: 160px;
         bullets: breathe-bullets;
     }
