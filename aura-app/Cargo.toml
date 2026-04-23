@@ -1,7 +1,8 @@
 [package]
 name = "aura-app"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 tauri = { workspace = true, features = ["macos-private-api"] }

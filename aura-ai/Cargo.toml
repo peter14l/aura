@@ -1,7 +1,8 @@
 [package]
 name = "aura-ai"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 candle-core = { workspace = true }
@@ -9,13 +10,10 @@ candle-nn = { workspace = true }
 candle-transformers = { workspace = true }
 hf-hub = { workspace = true }
 tokenizers = { workspace = true }
-tokio = { workspace = true }
+once_cell = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 scraper = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-dirs = { workspace = true }
-
-[target.'cfg(target_os = "android")'.dependencies]
-candle-core = { workspace = true } # Without Metal on Android
+aura-net = { path = "../aura-net" }

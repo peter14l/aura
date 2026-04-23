@@ -1,15 +1,19 @@
 [package]
 name = "aura-silo"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 rusqlite = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 aes-gcm = { workspace = true }
-rand = { workspace = true }
-url = { workspace = true }
-thiserror = { workspace = true }
-dirs = { workspace = true }
 keyring = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+once_cell = { workspace = true }
+dirs = { workspace = true }

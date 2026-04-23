@@ -9,6 +9,10 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+edition = "2024"
+rust-version = "1.88.0"
+
 [workspace.dependencies]
 # Core
 tauri            = { version = "2" }

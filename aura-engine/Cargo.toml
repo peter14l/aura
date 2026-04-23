@@ -1,14 +1,16 @@
 [package]
 name = "aura-engine"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 servo = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
+libloading = { workspace = true }
+once_cell = { workspace = true }
+thiserror = { workspace = true }
 serde = { workspace = true }
-
-[lib]
-name = "aura_engine"
-crate-type = ["cdylib"]
+serde_json = { workspace = true }
+image = { workspace = true }
