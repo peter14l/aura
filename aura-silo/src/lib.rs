@@ -38,7 +38,7 @@ pub struct SiloManager {
 impl SiloManager {
     pub fn init(base_dir: PathBuf) -> Result<Self, SiloError> {
         let entry = keyring::Entry::new("aura-browser", "master-key");
-        
+
         let master_key = match entry.and_then(|e| e.get_password()) {
             Ok(pw) => {
                 let decoded = hex::decode(pw).map_err(|_| SiloError::EncryptionFailed)?;

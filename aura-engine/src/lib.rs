@@ -34,19 +34,21 @@ pub struct EngineSnapshot {
 impl EngineContext {
     pub fn new_cold(config: &EngineConfig) -> Self {
         let ua = if !config.user_agent.is_null() {
-            unsafe { CStr::from_ptr(config.user_agent).to_string_lossy().into_owned() }
+            unsafe {
+                CStr::from_ptr(config.user_agent)
+                    .to_string_lossy()
+                    .into_owned()
+            }
         } else {
             "Aura/1.0".to_string()
         };
 
         // Initialize Servo components here
         // For the cdylib, we establish the bridge to the servo crate
-        
+
         Self {
             current_url: String::new(),
-            servo: Some(Box::new(ServoInstance {
-                url: String::new(),
-            })),
+            servo: Some(Box::new(ServoInstance { url: String::new() })),
         }
     }
 
@@ -101,7 +103,9 @@ pub extern "C" fn aura_engine_version() -> *const c_char {
 /// Caller must ensure config is a valid pointer.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
-    if config.is_null() { return std::ptr::null_mut(); }
+    if config.is_null() {
+        return std::ptr::null_mut();
+    }
     let ctx = Box::new(EngineContext::new_cold(&*config));
     Box::into_raw(ctx)
 }
@@ -113,7 +117,9 @@ pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
     snapshot: *const EngineSnapshot,
 ) -> bool {
-    if ctx.is_null() || snapshot.is_null() { return false; }
+    if ctx.is_null() || snapshot.is_null() {
+        return false;
+    }
     let ctx = &mut *ctx;
     ctx.restore_from_snapshot(&*snapshot)
 }
@@ -122,7 +128,9 @@ pub unsafe extern "C" fn aura_engine_warm_init(
 /// Caller must ensure ctx and url are valid pointers.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
-    if ctx.is_null() || url.is_null() { return false; }
+    if ctx.is_null() || url.is_null() {
+        return false;
+    }
     let ctx = &mut *ctx;
     let url_str = CStr::from_ptr(url).to_string_lossy();
     ctx.navigate(&url_str)
@@ -135,7 +143,9 @@ pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
     out_snapshot: *mut EngineSnapshot,
 ) -> bool {
-    if ctx.is_null() || out_snapshot.is_null() { return false; }
+    if ctx.is_null() || out_snapshot.is_null() {
+        return false;
+    }
     let ctx = &mut *ctx;
     let snapshot = ctx.serialise_state();
     *out_snapshot = snapshot;
@@ -146,7 +156,9 @@ pub unsafe extern "C" fn aura_engine_freeze(
 /// Caller must ensure ctx and surface are valid pointers.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
-    if ctx.is_null() { return; }
+    if ctx.is_null() {
+        return;
+    }
     let ctx = &mut *ctx;
     ctx.paint_to_surface(surface)
 }

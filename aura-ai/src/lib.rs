@@ -70,7 +70,7 @@ impl AiEngine {
             .encode(prompt, true)
             .map_err(AiError::Tokenizer)?;
         let mut tokens_ids = tokens.get_ids().to_vec();
-        
+
         let mut generated_ids = Vec::new();
         let eos_token_id = self.tokenizer.token_to_id("<|im_end|>").unwrap_or(0);
 
@@ -79,7 +79,7 @@ impl AiEngine {
             let logits = self.model.forward(&input, tokens_ids.len() - 1)?;
             let logits = logits.squeeze(0)?;
             let logits = logits.get(logits.dim(0)? - 1)?;
-            
+
             // Greedy sampling
             let next_token_id = logits
                 .to_vec1::<f32>()?
@@ -101,7 +101,7 @@ impl AiEngine {
             .tokenizer
             .decode(&generated_ids, true)
             .map_err(AiError::Tokenizer)?;
-        
+
         Ok(parse_bullets(&output))
     }
 }
@@ -115,11 +115,20 @@ fn aura_model_dir() -> PathBuf {
 
 fn parse_bullets(text: &str) -> Vec<String> {
     text.lines()
-        .filter(|l| l.trim().starts_with('·') || l.trim().starts_with('-') || l.trim().starts_with('*') || l.trim().starts_with('1') || l.trim().starts_with('2') || l.trim().starts_with('3'))
+        .filter(|l| {
+            l.trim().starts_with('·')
+                || l.trim().starts_with('-')
+                || l.trim().starts_with('*')
+                || l.trim().starts_with('1')
+                || l.trim().starts_with('2')
+                || l.trim().starts_with('3')
+        })
         .map(|l| {
-            l.trim_start_matches(|c: char| c == '·' || c == '-' || c == '*' || c == ' ' || c.is_digit(10) || c == '.')
-                .trim()
-                .to_string()
+            l.trim_start_matches(|c: char| {
+                c == '·' || c == '-' || c == '*' || c == ' ' || c.is_digit(10) || c == '.'
+            })
+            .trim()
+            .to_string()
         })
         .filter(|l| !l.is_empty())
         .collect()
@@ -131,7 +140,8 @@ fn extract_main_text(html: &str) -> String {
     let body_sel = Selector::parse("article p, main p, .content p, [role='main'] p").unwrap();
     let fallback_sel = Selector::parse("p").unwrap();
 
-    let paragraphs: Vec<String> = doc.select(&body_sel)
+    let paragraphs: Vec<String> = doc
+        .select(&body_sel)
         .map(|el| el.text().collect::<String>())
         .filter(|t| t.len() > 40)
         .collect();

@@ -45,7 +45,12 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
             let ui_handle = state.ui.clone();
             let target_url_str = target_url.to_string();
             tauri::async_runtime::spawn(async move {
-                if let Ok(resp) = reqwest::get(format!("{}/favicon.ico", target_url_str.trim_end_matches('/'))).await {
+                if let Ok(resp) = reqwest::get(format!(
+                    "{}/favicon.ico",
+                    target_url_str.trim_end_matches('/')
+                ))
+                .await
+                {
                     if let Ok(bytes) = resp.bytes().await {
                         if let Some(color) = aura_ui::extract_dominant_color(&bytes) {
                             let tabs = ui_handle.get_tabs();
@@ -80,18 +85,18 @@ fn toggle_command_bar(state: State<'_, AppState>) {
 async fn lotus_clicked(state: State<'_, AppState>) {
     let current = state.ui.get_breathe_visible();
     state.ui.set_breathe_visible(!current);
-    
+
     if !current {
         state.ui.set_status_message("Aura is thinking...".into());
         let ai_arc = state.ai.clone();
         let ui_handle = state.ui.clone();
-        
+
         tauri::async_runtime::spawn(async move {
             let mut ai_guard = ai_arc.lock().await;
             if ai_guard.is_none() {
                 *ai_guard = aura_ai::AiEngine::load().await.ok();
             }
-            
+
             if let Some(ai) = ai_guard.as_mut() {
                 // Mock HTML content - in real app, fetch from engine
                 let mock_html = "<html><body><p>Aura is a minimalist browser designed for focus and wellbeing.</p></body></html>";
@@ -169,7 +174,8 @@ pub fn run() {
                 aura_net::init_adblock(&[
                     "https://easylist.to/easylist/easylist.txt",
                     "https://easylist.to/easylist/easyprivacy.txt",
-                ]).await;
+                ])
+                .await;
             });
 
             let engine_path = if cfg!(windows) {
@@ -187,20 +193,22 @@ pub fn run() {
             });
 
             // Gestural Edge Detection
-            let win = app.get_webview_window("main").expect("Main window not found");
+            let win = app
+                .get_webview_window("main")
+                .expect("Main window not found");
             let ui_gestures = ui.as_weak();
             win.on_window_event(move |event| {
                 if let tauri::WindowEvent::CursorMoved { position, .. } = event {
                     if let Some(ui) = ui_gestures.upgrade() {
                         let x = position.x;
                         let y = position.y;
-                        
+
                         // Left edge: Constellation
                         ui.set_constellation_visible(x < 60.0);
-                        
+
                         // Top edge: Address Ghost
                         ui.set_address_ghost_visible(y < 60.0);
-                        
+
                         // Bottom edge: Status Bar (Approximate window height)
                         ui.set_status_bar_visible(y > 740.0);
                     }
@@ -222,13 +230,14 @@ pub fn run() {
                 let state: State<'_, AppState> = app_handle_lotus.state();
                 let ui_handle = state.ui.clone();
                 let ai_arc = state.ai.clone();
-                
+
                 tauri::async_runtime::spawn(async move {
                     lotus_clicked(State::new(AppState {
                         hot_swap: state.hot_swap.clone(),
                         ui: ui_handle,
                         ai: ai_arc,
-                    })).await;
+                    }))
+                    .await;
                 });
             });
 
