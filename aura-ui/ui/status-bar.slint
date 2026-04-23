@@ -45,16 +45,17 @@ export component StatusBar {
                     
                     // Simple "lotus" shape approximation
                     Rectangle {
-                        width: 8px; height: 16px;
-                        border-radius: 4px;
+                        width: 14px; height: 14px;
+                        border-radius: 7px;
                         background: AuraTheme.rose;
-                        rotation: 45deg;
+                        x: 3px; y: 3px;
                     }
                     Rectangle {
-                        width: 8px; height: 16px;
-                        border-radius: 4px;
-                        background: AuraTheme.rose;
-                        rotation: -45deg;
+                        width: 10px; height: 10px;
+                        border-radius: 5px;
+                        background: AuraTheme.obsidian;
+                        x: 5px; y: 5px;
+                        opacity: 0.3;
                     }
                 }
             }
