@@ -30,15 +30,11 @@ pub async fn intercept(
     source_url: &Url,
     resource_type: &str,
 ) -> InterceptDecision {
-    let request = Request::new(
-        request_url.as_str(),
-        source_url.as_str(),
-        resource_type,
-    )
-    .unwrap_or_else(|_| {
-        // Fallback for malformed request data
-        Request::new("", "", "").unwrap()
-    });
+    let request = Request::new(request_url.as_str(), source_url.as_str(), resource_type)
+        .unwrap_or_else(|_| {
+            // Fallback for malformed request data
+            Request::new("", "", "").unwrap()
+        });
 
     let block_result = ADBLOCK.check_network_request(&request);
 
