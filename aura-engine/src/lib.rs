@@ -57,56 +57,56 @@ impl EngineContext {
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_version() -> *const u8 {
-    b"1.4.2\0".as_ptr()
+pub extern "C" fn aura_engine_version() -> *const c_char {
+    c"1.4.2".as_ptr()
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
-    let ctx = Box::new(EngineContext::new_cold(unsafe { &*config }));
+pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
+    let ctx = Box::new(EngineContext::new_cold(&*config));
     Box::into_raw(ctx)
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_warm_init(
+pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
     snapshot: *const EngineSnapshot,
 ) -> bool {
-    let ctx = unsafe { &mut *ctx };
-    ctx.restore_from_snapshot(unsafe { &*snapshot })
+    let ctx = &mut *ctx;
+    ctx.restore_from_snapshot(&*snapshot)
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
+pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
     if ctx.is_null() || url.is_null() {
         return false;
     }
-    let ctx = unsafe { &mut *ctx };
-    let url_str = unsafe { CStr::from_ptr(url) }.to_string_lossy();
+    let ctx = &mut *ctx;
+    let url_str = CStr::from_ptr(url).to_string_lossy();
     ctx.navigate(&url_str)
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_freeze(
+pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
     out_snapshot: *mut EngineSnapshot,
 ) -> bool {
-    let ctx = unsafe { &mut *ctx };
+    let ctx = &mut *ctx;
     let snapshot = ctx.serialise_state();
-    unsafe { *out_snapshot = snapshot };
+    *out_snapshot = snapshot;
     ctx.release_gpu_surface();
     true
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
-    let ctx = unsafe { &mut *ctx };
+pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
+    let ctx = &mut *ctx;
     ctx.paint_to_surface(surface)
 }
 
 #[no_mangle]
-pub extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
+pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     if !ctx.is_null() {
-        unsafe { drop(Box::from_raw(ctx)) }
+        drop(Box::from_raw(ctx))
     }
 }
