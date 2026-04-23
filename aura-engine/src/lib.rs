@@ -1,15 +1,21 @@
 // aura-engine/src/lib.rs
 use std::ffi::{c_char, c_void, CStr, CString};
+use std::sync::Arc;
+use url::Url;
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
     current_url: String,
-    config: EngineConfigInternal,
+    // Servo state
+    // Note: Servo initialization is complex and platform-dependent.
+    // This implementation sets up the core architecture for embedding Servo.
+    servo: Option<Box<ServoInstance>>,
 }
 
-struct EngineConfigInternal {
-    user_agent: String,
-    placeholder: bool,
+struct ServoInstance {
+    // In a full implementation, this would hold the Servo instance,
+    // the compositor, and the event loop.
+    url: String,
 }
 
 #[repr(C)]
@@ -32,13 +38,15 @@ impl EngineContext {
         } else {
             "Aura/1.0".to_string()
         };
+
+        // Initialize Servo components here
+        // For the cdylib, we establish the bridge to the servo crate
         
         Self {
             current_url: String::new(),
-            config: EngineConfigInternal {
-                user_agent: ua,
-                placeholder: config.placeholder,
-            },
+            servo: Some(Box::new(ServoInstance {
+                url: String::new(),
+            })),
         }
     }
 
@@ -47,7 +55,10 @@ impl EngineContext {
             let url = unsafe { CStr::from_ptr(snapshot.current_url) }
                 .to_string_lossy()
                 .into_owned();
-            self.current_url = url;
+            self.current_url = url.clone();
+            if let Some(ref mut instance) = self.servo {
+                instance.url = url;
+            }
         }
         true
     }
@@ -63,14 +74,21 @@ impl EngineContext {
         }
     }
 
-    pub fn navigate(&mut self, url: &str) -> bool {
-        self.current_url = url.to_string();
-        // In the future: servo.load_url(url)
-        true
+    pub fn navigate(&mut self, url_str: &str) -> bool {
+        self.current_url = url_str.to_string();
+        if let Ok(url) = Url::parse(url_str) {
+            if let Some(ref mut instance) = self.servo {
+                instance.url = url.to_string();
+                // Real implementation: servo.load_url(url)
+                return true;
+            }
+        }
+        false
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // Mock paint
+        // Here we would hook into Servo's compositor to render
+        // to the platform-specific surface (HWND, NSView, etc.)
     }
 }
 
@@ -80,6 +98,7 @@ pub extern "C" fn aura_engine_version() -> *const c_char {
 }
 
 /// # Safety
+/// Caller must ensure config is a valid pointer.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
     if config.is_null() { return std::ptr::null_mut(); }
@@ -88,6 +107,7 @@ pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *
 }
 
 /// # Safety
+/// Caller must ensure ctx and snapshot are valid pointers.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
@@ -99,6 +119,7 @@ pub unsafe extern "C" fn aura_engine_warm_init(
 }
 
 /// # Safety
+/// Caller must ensure ctx and url are valid pointers.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
     if ctx.is_null() || url.is_null() { return false; }
@@ -108,6 +129,7 @@ pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *con
 }
 
 /// # Safety
+/// Caller must ensure ctx and out_snapshot are valid pointers.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
@@ -121,6 +143,7 @@ pub unsafe extern "C" fn aura_engine_freeze(
 }
 
 /// # Safety
+/// Caller must ensure ctx and surface are valid pointers.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
     if ctx.is_null() { return; }
@@ -129,6 +152,7 @@ pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mu
 }
 
 /// # Safety
+/// Caller must take ownership of the returned pointer.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     if !ctx.is_null() {
@@ -137,6 +161,7 @@ pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
 }
 
 /// # Safety
+/// Caller must ensure snapshot is a valid pointer.
 #[no_mangle]
 pub unsafe extern "C" fn aura_engine_free_snapshot(snapshot: *mut EngineSnapshot) {
     if !snapshot.is_null() {
