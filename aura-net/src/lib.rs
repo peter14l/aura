@@ -1,6 +1,7 @@
 // aura-net/src/lib.rs
 
 use adblock::lists::{FilterSet, ParseOptions};
+use adblock::request::Request;
 use adblock::Engine as AdblockEngine;
 use once_cell::sync::Lazy;
 use sha2::Digest;
@@ -29,8 +30,17 @@ pub async fn intercept(
     source_url: &Url,
     resource_type: &str,
 ) -> InterceptDecision {
-    let block_result =
-        ADBLOCK.check_network_urls(request_url.as_str(), source_url.as_str(), resource_type);
+    let request = Request::new(
+        request_url.as_str(),
+        source_url.as_str(),
+        resource_type,
+    )
+    .unwrap_or_else(|_| {
+        // Fallback for malformed request data
+        Request::new("", "", "").unwrap()
+    });
+
+    let block_result = ADBLOCK.check_network_request(&request);
 
     if block_result.matched {
         return InterceptDecision::Block {
