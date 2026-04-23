@@ -1,5 +1,5 @@
 // aura-engine/src/lib.rs
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::{CStr, CString, c_char, c_void};
 use std::sync::Arc;
 use url::Url;
 
