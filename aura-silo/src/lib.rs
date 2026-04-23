@@ -3,6 +3,8 @@
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
+use rand::RngCore;
+use aes_gcm::{Aes256Gcm, Key, Nonce, aead::{Aead, KeyInit}};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SiloError {
@@ -134,12 +136,6 @@ impl SiloManager {
     }
 
     fn encrypt_value(&self, plaintext: &[u8]) -> Result<Vec<u8>, SiloError> {
-        use aes_gcm::{
-            aead::{Aead, NewAead},
-            Aes256Gcm, Key, Nonce,
-        };
-        use rand::RngCore;
-
         let key = Key::from_slice(&self.master_key);
         let cipher = Aes256Gcm::new(key);
         let mut nonce_bytes = [0u8; 12];
