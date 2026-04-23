@@ -1,11 +1,11 @@
 import { AuraTheme } from "tokens.slint";
 
 export component AddressGhost {
-    in property <bool> visible: false;
+    in property <bool> show: false;
     in property <string> url: "aura://newtab";
     
-    opacity: visible ? 0.8 : 0.0;
-    y: visible ? 0px : -20px;
+    opacity: show ? 0.8 : 0.0;
+    y: show ? 0px : -20px;
     animate opacity, y { duration: 300ms; easing: AuraTheme.ease-breathe; }
 
     x: (parent.width - self.width) / 2;

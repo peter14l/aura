@@ -1,12 +1,12 @@
 import { AuraTheme } from "tokens.slint";
 
 export component StatusBar {
-    in property <bool> visible: false;
+    in property <bool> show: false;
     in property <string> status-text: "Breathe in...";
     callback lotus-clicked();
 
-    opacity: visible ? 1.0 : 0.0;
-    y: visible ? parent.height - self.height : parent.height;
+    opacity: show ? 1.0 : 0.0;
+    y: show ? parent.height - self.height : parent.height;
     animate opacity, y { duration: 300ms; easing: AuraTheme.ease-breathe; }
 
     x: 0;

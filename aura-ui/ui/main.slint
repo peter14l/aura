@@ -24,7 +24,7 @@ export component MainUI inherits Window {
     background: AuraTheme.obsidian.with-alpha(0.01);
 
     AddressGhost {
-        visible: address-ghost-visible;
+        show: address-ghost-visible;
         url: active-url;
     }
 
@@ -53,7 +53,7 @@ export component MainUI inherits Window {
     }
 
     StatusBar {
-        visible: status-bar-visible;
+        show: status-bar-visible;
         status-text: status-message;
         lotus-clicked => { root.lotus-clicked(); }
     }
