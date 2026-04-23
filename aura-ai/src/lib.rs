@@ -91,12 +91,15 @@ impl AiEngine {
 }
 
 fn aura_model_dir() -> PathBuf {
-    dirs::home_dir().unwrap().join(".aura").join("models")
+    dirs::home_dir()
+        .expect("Could not find home directory")
+        .join(".aura")
+        .join("models")
 }
 
 fn parse_bullets(text: &str) -> Vec<String> {
     text.lines()
-        .filter(|l| l.starts_with("·") || l.starts_with("-") || l.starts_with("*"))
+        .filter(|l| l.starts_with('·') || l.starts_with('-') || l.starts_with('*'))
         .map(|l| {
             l.trim_start_matches(|c| c == '·' || c == '-' || c == '*' || c == ' ')
                 .to_string()
@@ -107,7 +110,7 @@ fn parse_bullets(text: &str) -> Vec<String> {
 fn extract_main_text(html: &str) -> String {
     use scraper::{Html, Selector};
     let doc = Html::parse_document(html);
-    let fallback_sel = Selector::parse("p").unwrap();
+    let fallback_sel = Selector::parse("p").expect("Invalid CSS selector for fallback");
     doc.select(&fallback_sel)
         .map(|el| el.text().collect::<String>())
         .collect::<Vec<_>>()

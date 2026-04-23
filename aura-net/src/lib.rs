@@ -60,13 +60,16 @@ pub async fn intercept(
 
 fn load_or_fetch_lists(urls: &[&str]) -> Vec<String> {
     let mut all_rules = Vec::new();
-    let cache_dir = dirs::home_dir().unwrap().join(".aura").join("lists");
-    std::fs::create_dir_all(&cache_dir).unwrap();
+    let cache_dir = dirs::home_dir()
+        .expect("Could not find home directory")
+        .join(".aura")
+        .join("lists");
+    std::fs::create_dir_all(&cache_dir).expect("Could not create cache directory");
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .unwrap();
+        .expect("Could not build tokio runtime");
 
     for url in urls {
         let file_name = hex::encode(sha2::Sha256::digest(url.as_bytes()));
@@ -75,19 +78,30 @@ fn load_or_fetch_lists(urls: &[&str]) -> Vec<String> {
         let mut use_cache = false;
         if let Ok(metadata) = std::fs::metadata(&cache_path) {
             if let Ok(modified) = metadata.modified() {
-                if modified.elapsed().unwrap().as_secs() < 86400 {
+                if modified.elapsed().is_some_and(|d| d.as_secs() < 86400) {
                     use_cache = true;
                 }
             }
         }
 
         let content = if use_cache {
-            std::fs::read_to_string(&cache_path).unwrap()
+            std::fs::read_to_string(&cache_path).unwrap_or_default()
         } else {
-            let body =
-                rt.block_on(async { reqwest::get(*url).await.unwrap().text().await.unwrap() });
-            std::fs::write(&cache_path, &body).unwrap();
-            body
+            let body = rt.block_on(async {
+                reqwest::get(*url)
+                    .await
+                    .ok()?
+                    .text()
+                    .await
+                    .ok()
+            });
+
+            if let Some(body) = body {
+                let _ = std::fs::write(&cache_path, &body);
+                body
+            } else {
+                String::new()
+            }
         };
 
         all_rules.extend(content.lines().map(|s| s.to_string()));

@@ -37,7 +37,7 @@ impl EngineContext {
     pub fn serialise_state(&self) -> EngineSnapshot {
         // In a real implementation, we'd need to manage the lifecycle of this C string
         let url_ptr = std::ffi::CString::new(self.current_url.clone())
-            .unwrap()
+            .expect("URL contains interior nul byte")
             .into_raw();
         EngineSnapshot {
             current_url: url_ptr,

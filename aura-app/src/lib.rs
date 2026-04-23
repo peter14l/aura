@@ -62,11 +62,10 @@ pub async fn run() {
     tauri::Builder::default()
         .manage(manager)
         .setup(|app| {
-            let win = app.get_webview_window("main").unwrap();
+            let win = app.get_webview_window("main").expect("Could not find main webview window");
 
             // Borderless & Transparent
-            let _ = win.set_decorations(false);
-            let _ = win.set_shadow(false);
+            let _ = win.set_decorations(false);            let _ = win.set_shadow(false);
 
             Ok(())
         })
