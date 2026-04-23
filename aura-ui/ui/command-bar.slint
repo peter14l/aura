@@ -1,11 +1,12 @@
 import { AuraTheme } from "tokens.slint";
 
 export component CommandBar {
-    in property <bool> visible: false;
+    in property <bool> show: false;
     in-out property <string> query;
     callback submitted(string);
 
-    opacity: visible ? 1.0 : 0.0;
+    visible: show;
+    opacity: show ? 1.0 : 0.0;
     animate opacity { duration: AuraTheme.breathe; easing: AuraTheme.ease-breathe; }
 
     x: (parent.width - self.width) / 2;

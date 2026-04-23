@@ -3,7 +3,7 @@ import { CommandBar } from "command-bar.slint";
 import { Constellation, TabNode } from "constellation.slint";
 import { BreatheOverlay } from "breathe-overlay.slint";
 
-export component MainUI {
+export component MainUI inherits Window {
     in property <bool> command-bar-visible: false;
     in property <bool> constellation-visible: false;
     in property <bool> breathe-visible: false;
@@ -17,18 +17,18 @@ export component MainUI {
     background: AuraTheme.obsidian.with-alpha(0.01); // Subtle base for transparency
 
     CommandBar {
-        visible: command-bar-visible;
+        show: command-bar-visible;
         submitted(url) => { root.navigate(url); }
     }
 
     Constellation {
-        visible: constellation-visible;
+        show: constellation-visible;
         tabs: tabs;
         tab-selected(i) => { root.tab-selected(i); }
     }
 
     BreatheOverlay {
-        visible: breathe-visible;
+        show: breathe-visible;
         bullets: breathe-bullets;
     }
 }

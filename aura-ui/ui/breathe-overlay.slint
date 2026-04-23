@@ -1,11 +1,12 @@
 import { AuraTheme } from "tokens.slint";
 
 export component BreatheOverlay {
-    in property <bool> visible: false;
+    in property <bool> show: false;
     in property <[string]> bullets: [];
     in property <bool> loading: false;
 
-    opacity: visible ? 1.0 : 0.0;
+    visible: show;
+    opacity: show ? 1.0 : 0.0;
     animate opacity { duration: 320ms; easing: ease-in-out; }
 
     y: parent.height - self.height - 24px;

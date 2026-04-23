@@ -33,7 +33,7 @@ export component TabOrb {
 
 export component Constellation {
     in property <[TabNode]> tabs;
-    in property <bool> visible: false;
+    in property <bool> show: false;
     callback tab-selected(int);
 
     x: 0;
@@ -41,7 +41,8 @@ export component Constellation {
     width: 80px;
     height: 100%;
     
-    opacity: visible ? 1.0 : 0.0;
+    visible: show;
+    opacity: show ? 1.0 : 0.0;
     animate opacity { duration: 300ms; }
 
     VerticalLayout {
