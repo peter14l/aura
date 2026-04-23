@@ -2,11 +2,11 @@
 
 pub mod hot_swap;
 
-use aura_ui::MainUI;
+use aura_ui::{MainUI, TabNode};
 use hot_swap::{HotSwapManager, SwapError};
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model};
 use std::sync::Arc;
-use tauri::{AppHandle, Manager, State};
+use tauri::{Manager, State};
 use url::Url;
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
@@ -38,6 +38,7 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
         aura_net::InterceptDecision::Allow(target_url)
         | aura_net::InterceptDecision::Redirect(target_url) => {
             state.hot_swap.navigate(target_url.as_str()).await?;
+            state.ui.set_active_url(target_url.as_str().into());
             Ok(())
         }
         aura_net::InterceptDecision::Block { reason } => {
@@ -64,13 +65,36 @@ fn lotus_clicked(state: State<'_, AppState>) {
 }
 
 #[tauri::command]
-async fn zen_summary(state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
-    // This would ideally get the current HTML from the engine
+fn add_tab(state: State<'_, AppState>, title: String, _url: String) {
+    let tabs = state.ui.get_tabs();
+    let new_id = tabs.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+
+    let node = TabNode {
+        id: new_id,
+        title: title.into(),
+        favicon: slint::Image::default(),
+        glow_color: slint::Color::from_rgb_u8(212, 225, 209), // Sage
+        active: true,
+        pinned: false,
+    };
+
+    let mut vec: Vec<TabNode> = tabs.iter().collect();
+    for t in &mut vec {
+        t.active = false;
+    }
+    vec.push(node);
+
+    let model = std::sync::Arc::new(slint::VecModel::from(vec));
+    state.ui.set_tabs(model.into());
+}
+
+#[tauri::command]
+async fn zen_summary(_state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
     Ok(vec!["Aura is a sanctuary for focused browsing.".to_string()])
 }
 
 #[tauri::command]
-async fn silo_status(domain: String, _state: State<'_, AppState>) -> Result<bool, AuraError> {
+async fn silo_status(_domain: String, _state: State<'_, AppState>) -> Result<bool, AuraError> {
     Ok(true)
 }
 
@@ -83,7 +107,6 @@ pub fn run() {
         ui: ui.clone(),
     };
 
-    // Initialize Silo
     let silo_dir = dirs::home_dir()
         .expect("Could not find home directory")
         .join(".aura")
@@ -93,7 +116,6 @@ pub fn run() {
     tauri::Builder::default()
         .manage(state)
         .setup(move |app| {
-            // Initialize Adblock in background
             tauri::async_runtime::spawn(async move {
                 aura_net::init_adblock(&[
                     "https://easylist.to/easylist/easylist.txt",
@@ -101,7 +123,6 @@ pub fn run() {
                 ]).await;
             });
 
-            // Initial engine load
             let engine_path = if cfg!(windows) {
                 "./engines/aura_engine.dll"
             } else if cfg!(target_os = "macos") {
@@ -116,8 +137,6 @@ pub fn run() {
                 let _ = hs.load_initial_engine(path).await;
             });
 
-            // Set up UI callbacks
-            let _ui_handle = ui.as_weak();
             let app_handle = app.handle().clone();
             ui.on_navigate(move |url| {
                 let app_handle = app_handle.clone();
@@ -128,13 +147,12 @@ pub fn run() {
                 });
             });
 
+            let app_handle_lotus = app.handle().clone();
             ui.on_lotus_clicked(move || {
-                let app_handle = app_handle.clone();
-                let state: State<'_, AppState> = app_handle.state();
+                let state: State<'_, AppState> = app_handle_lotus.state();
                 lotus_clicked(state);
             });
 
-            // Show Slint UI
             ui.show().expect("Failed to show Slint UI");
 
             Ok(())
@@ -144,7 +162,8 @@ pub fn run() {
             toggle_command_bar,
             zen_summary,
             silo_status,
-            lotus_clicked
+            lotus_clicked,
+            add_tab
         ])
         .run(tauri::generate_context!())
         .expect("Aura failed to launch");

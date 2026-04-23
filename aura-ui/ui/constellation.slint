@@ -1,58 +1,70 @@
 import { AuraTheme } from "tokens.slint";
 
 export struct TabNode {
+    id: int,
     title: string,
     favicon: image,
-    glow-color: color,
+    glow_color: color,
+    active: bool,
+    pinned: bool,
 }
 
 export component TabOrb {
     in property <TabNode> node;
-    in property <bool> active: false;
     callback clicked();
+    callback closed();
 
-    width: active ? 44px : 32px;
-    height: active ? 44px : 32px;
-    animate width, height { duration: 220ms; easing: AuraTheme.ease-breathe; }
+    width: node.active ? 48px : 36px;
+    height: self.width;
+    animate width, height { duration: 250ms; easing: AuraTheme.ease-breathe; }
 
     Rectangle {
         border-radius: self.width / 2;
-        background: node.glow-color.with-alpha(0.4);
+        background: node.glow_color.with-alpha(0.3);
+        border-width: node.active ? 2px : 0px;
+        border-color: node.glow_color;
         
+        drop-shadow-blur: node.active ? 20px : 8px;
+        drop-shadow-color: node.glow_color.with-alpha(0.5);
+
         Image { 
             source: node.favicon; 
-            width: 60%; 
-            height: 60%; 
+            width: 50%; 
+            height: 50%; 
+            opacity: 0.8;
         }
 
         TouchArea {
             clicked => { root.clicked(); }
+            // Long press or right click could trigger closed()
         }
     }
 }
 
 export component Constellation {
     in property <[TabNode]> tabs;
-    in property <bool> show: false;
+    in property <bool> visible: false;
     callback tab-selected(int);
 
-    x: 0;
-    y: 0;
-    width: 80px;
+    x: visible ? 0px : -100px;
+    opacity: visible ? 1.0 : 0.0;
+    animate x, opacity { duration: 400ms; easing: AuraTheme.ease-breathe; }
+
+    width: 100px;
     height: 100%;
-    
-    visible: show;
-    opacity: show ? 1.0 : 0.0;
-    animate opacity { duration: 300ms; }
 
-    VerticalLayout {
-        padding: 20px;
-        spacing: 16px;
-        alignment: center;
+    Rectangle {
+        background: AuraTheme.glass;
+        
+        VerticalLayout {
+            padding: 24px;
+            spacing: 20px;
+            alignment: center;
 
-        for tab[i] in tabs : TabOrb {
-            node: tab;
-            clicked => { tab-selected(i); }
+            for tab[i] in tabs : TabOrb {
+                node: tab;
+                clicked => { root.tab-selected(tab.id); }
+            }
         }
     }
 }
