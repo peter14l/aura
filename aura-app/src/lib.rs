@@ -53,6 +53,17 @@ fn toggle_command_bar(state: State<'_, AppState>) {
 }
 
 #[tauri::command]
+fn lotus_clicked(state: State<'_, AppState>) {
+    let current = state.ui.get_breathe_visible();
+    state.ui.set_breathe_visible(!current);
+    if !current {
+        state.ui.set_status_message("Breathe...".into());
+    } else {
+        state.ui.set_status_message("Ready".into());
+    }
+}
+
+#[tauri::command]
 async fn zen_summary(state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
     // This would ideally get the current HTML from the engine
     Ok(vec!["Aura is a sanctuary for focused browsing.".to_string()])
@@ -117,6 +128,12 @@ pub fn run() {
                 });
             });
 
+            ui.on_lotus_clicked(move || {
+                let app_handle = app_handle.clone();
+                let state: State<'_, AppState> = app_handle.state();
+                lotus_clicked(state);
+            });
+
             // Show Slint UI
             ui.show().expect("Failed to show Slint UI");
 
@@ -126,7 +143,8 @@ pub fn run() {
             navigate,
             toggle_command_bar,
             zen_summary,
-            silo_status
+            silo_status,
+            lotus_clicked
         ])
         .run(tauri::generate_context!())
         .expect("Aura failed to launch");

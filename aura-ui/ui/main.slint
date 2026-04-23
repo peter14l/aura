@@ -3,19 +3,23 @@ import { CommandBar } from "command-bar.slint";
 import { Constellation, TabNode } from "constellation.slint";
 import { BreatheOverlay } from "breathe-overlay.slint";
 import { AddressGhost } from "address-ghost.slint";
+import { StatusBar } from "status-bar.slint";
 
 export component MainUI inherits Window {
     in property <bool> command-bar-visible: false;
     in property <bool> constellation-visible: false;
     in property <bool> breathe-visible: false;
     in property <bool> address-ghost-visible: false;
+    in property <bool> status-bar-visible: false;
     
     in property <string> active-url: "aura://home";
+    in property <string> status-message: "Ready";
     in property <[TabNode]> tabs;
     in property <[string]> breathe-bullets;
     
     callback navigate(string);
     callback tab-selected(int);
+    callback lotus-clicked();
 
     background: AuraTheme.obsidian.with-alpha(0.01);
 
@@ -46,5 +50,11 @@ export component MainUI inherits Window {
         width: min(parent.width * 0.6, 520px);
         height: 160px;
         bullets: breathe-bullets;
+    }
+
+    StatusBar {
+        visible: status-bar-visible;
+        status-text: status-message;
+        lotus-clicked => { root.lotus-clicked(); }
     }
 }

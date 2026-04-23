@@ -1,0 +1,63 @@
+import { AuraTheme } from "tokens.slint";
+
+export component StatusBar {
+    in property <bool> visible: false;
+    in property <string> status-text: "Breathe in...";
+    callback lotus-clicked();
+
+    opacity: visible ? 1.0 : 0.0;
+    y: visible ? parent.height - self.height : parent.height;
+    animate opacity, y { duration: 300ms; easing: AuraTheme.ease-breathe; }
+
+    x: 0;
+    width: 100%;
+    height: 40px;
+
+    Rectangle {
+        background: AuraTheme.glass;
+        
+        HorizontalLayout {
+            padding-left: 20px;
+            padding-right: 20px;
+            spacing: 12px;
+
+            Text {
+                text: status-text;
+                color: AuraTheme.base;
+                font-size: 11px;
+                vertical-alignment: center;
+            }
+
+            Rectangle {} // Spacer
+
+            // Lotus AI Icon
+            TouchArea {
+                width: 32px;
+                height: 32px;
+                clicked => { root.lotus-clicked(); }
+                
+                Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: AuraTheme.rose;
+                    opacity: 0.6;
+                    
+                    // Simple "lotus" shape approximation
+                    Rectangle {
+                        width: 8px; height: 16px;
+                        border-radius: 4px;
+                        background: AuraTheme.rose;
+                        rotation-angle: 45deg;
+                    }
+                    Rectangle {
+                        width: 8px; height: 16px;
+                        border-radius: 4px;
+                        background: AuraTheme.rose;
+                        rotation-angle: -45deg;
+                    }
+                }
+            }
+        }
+    }
+}
