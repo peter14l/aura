@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# This will be a cdylib loaded by aura-app
+servo = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+serde = { workspace = true }
+
 [lib]
 name = "aura_engine"
 crate-type = ["cdylib"]
