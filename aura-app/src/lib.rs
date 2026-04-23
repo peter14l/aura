@@ -26,6 +26,7 @@ impl From<SwapError> for AuraError {
 pub struct AppState {
     pub hot_swap: Arc<HotSwapManager>,
     pub ui: MainUI,
+    pub ai: Arc<tokio::sync::Mutex<Option<aura_ai::AiEngine>>>,
 }
 
 #[tauri::command]
@@ -39,6 +40,28 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
         | aura_net::InterceptDecision::Redirect(target_url) => {
             state.hot_swap.navigate(target_url.as_str()).await?;
             state.ui.set_active_url(target_url.as_str().into());
+
+            // Try to extract favicon color in background
+            let ui_handle = state.ui.clone();
+            let target_url_str = target_url.to_string();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(resp) = reqwest::get(format!("{}/favicon.ico", target_url_str.trim_end_matches('/'))).await {
+                    if let Ok(bytes) = resp.bytes().await {
+                        if let Some(color) = aura_ui::extract_dominant_color(&bytes) {
+                            let tabs = ui_handle.get_tabs();
+                            let mut vec: Vec<TabNode> = tabs.iter().collect();
+                            for t in &mut vec {
+                                if t.active {
+                                    t.glow_color = color;
+                                }
+                            }
+                            let model = std::sync::Arc::new(slint::VecModel::from(vec));
+                            ui_handle.set_tabs(model.into());
+                        }
+                    }
+                }
+            });
+
             Ok(())
         }
         aura_net::InterceptDecision::Block { reason } => {
@@ -54,11 +77,33 @@ fn toggle_command_bar(state: State<'_, AppState>) {
 }
 
 #[tauri::command]
-fn lotus_clicked(state: State<'_, AppState>) {
+async fn lotus_clicked(state: State<'_, AppState>) {
     let current = state.ui.get_breathe_visible();
     state.ui.set_breathe_visible(!current);
+    
     if !current {
-        state.ui.set_status_message("Breathe...".into());
+        state.ui.set_status_message("Aura is thinking...".into());
+        let ai_arc = state.ai.clone();
+        let ui_handle = state.ui.clone();
+        
+        tauri::async_runtime::spawn(async move {
+            let mut ai_guard = ai_arc.lock().await;
+            if ai_guard.is_none() {
+                *ai_guard = aura_ai::AiEngine::load().await.ok();
+            }
+            
+            if let Some(ai) = ai_guard.as_mut() {
+                // Mock HTML content - in real app, fetch from engine
+                let mock_html = "<html><body><p>Aura is a minimalist browser designed for focus and wellbeing.</p></body></html>";
+                if let Ok(bullets) = ai.summarise(mock_html).await {
+                    let model = std::sync::Arc::new(slint::VecModel::from(bullets));
+                    ui_handle.set_breathe_bullets(model.into());
+                    ui_handle.set_status_message("Breathe.".into());
+                }
+            } else {
+                ui_handle.set_status_message("AI offline".into());
+            }
+        });
     } else {
         state.ui.set_status_message("Ready".into());
     }
@@ -103,10 +148,12 @@ async fn silo_status(_domain: String, _state: State<'_, AppState>) -> Result<boo
 pub fn run() {
     let ui = aura_ui::create_ui();
     let hot_swap = Arc::new(HotSwapManager::new());
+    let ai = Arc::new(tokio::sync::Mutex::new(None));
 
     let state = AppState {
         hot_swap: hot_swap.clone(),
         ui: ui.clone(),
+        ai,
     };
 
     let silo_dir = dirs::home_dir()
@@ -173,7 +220,16 @@ pub fn run() {
             let app_handle_lotus = app.handle().clone();
             ui.on_lotus_clicked(move || {
                 let state: State<'_, AppState> = app_handle_lotus.state();
-                lotus_clicked(state);
+                let ui_handle = state.ui.clone();
+                let ai_arc = state.ai.clone();
+                
+                tauri::async_runtime::spawn(async move {
+                    lotus_clicked(State::new(AppState {
+                        hot_swap: state.hot_swap.clone(),
+                        ui: ui_handle,
+                        ai: ai_arc,
+                    })).await;
+                });
             });
 
             ui.show().expect("Failed to show Slint UI");
