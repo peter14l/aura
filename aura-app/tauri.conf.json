@@ -1,6 +1,7 @@
 {
   "identifier": "dev.aura-browser.app",
   "app": {
+    "macOSPrivateApi": true,
     "windows": [{
       "label": "main",
       "title": "Aura",
