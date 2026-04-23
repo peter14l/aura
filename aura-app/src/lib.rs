@@ -81,8 +81,7 @@ fn toggle_command_bar(state: State<'_, AppState>) {
     state.ui.set_command_bar_visible(!current);
 }
 
-#[tauri::command]
-async fn lotus_clicked(state: State<'_, AppState>) {
+async fn internal_lotus_clicked(state: &AppState) {
     let current = state.ui.get_breathe_visible();
     state.ui.set_breathe_visible(!current);
 
@@ -98,7 +97,6 @@ async fn lotus_clicked(state: State<'_, AppState>) {
             }
 
             if let Some(ai) = ai_guard.as_mut() {
-                // Mock HTML content - in real app, fetch from engine
                 let mock_html = "<html><body><p>Aura is a minimalist browser designed for focus and wellbeing.</p></body></html>";
                 if let Ok(bullets) = ai.summarise(mock_html).await {
                     let model = std::sync::Arc::new(slint::VecModel::from(bullets));
@@ -112,6 +110,12 @@ async fn lotus_clicked(state: State<'_, AppState>) {
     } else {
         state.ui.set_status_message("Ready".into());
     }
+}
+
+#[tauri::command]
+async fn lotus_clicked(state: State<'_, AppState>) -> Result<(), ()> {
+    internal_lotus_clicked(&state).await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -203,13 +207,8 @@ pub fn run() {
                         let x = position.x;
                         let y = position.y;
 
-                        // Left edge: Constellation
                         ui.set_constellation_visible(x < 60.0);
-
-                        // Top edge: Address Ghost
                         ui.set_address_ghost_visible(y < 60.0);
-
-                        // Bottom edge: Status Bar (Approximate window height)
                         ui.set_status_bar_visible(y > 740.0);
                     }
                 }
@@ -227,17 +226,10 @@ pub fn run() {
 
             let app_handle_lotus = app.handle().clone();
             ui.on_lotus_clicked(move || {
-                let state: State<'_, AppState> = app_handle_lotus.state();
-                let ui_handle = state.ui.clone();
-                let ai_arc = state.ai.clone();
-
+                let app_handle = app_handle_lotus.clone();
                 tauri::async_runtime::spawn(async move {
-                    lotus_clicked(State::new(AppState {
-                        hot_swap: state.hot_swap.clone(),
-                        ui: ui_handle,
-                        ai: ai_arc,
-                    }))
-                    .await;
+                    let state: State<'_, AppState> = app_handle.state();
+                    internal_lotus_clicked(&state).await;
                 });
             });
 
