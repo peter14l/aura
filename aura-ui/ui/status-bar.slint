@@ -6,8 +6,7 @@ export component StatusBar {
     callback lotus-clicked();
 
     opacity: show ? 1.0 : 0.0;
-    y: show ? parent.height - self.height : parent.height;
-    animate opacity, y { duration: 300ms; easing: AuraTheme.ease-breathe; }
+    animate opacity { duration: 300ms; easing: AuraTheme.ease-breathe; }
 
     x: 0;
     width: 100%;
