@@ -16,7 +16,6 @@ env:
   RUST_VERSION: "stable"
   CARGO_TERM_COLOR: always
   BINDGEN_EXTRA_CLANG_ARGS: "-D__x86_64__"
-  LIBCLANG_PATH: "/usr/lib/llvm-14/lib"
 
 jobs:
   # ── Job 1: Vibe Check (lint + test) ─────────────────────────────────────
@@ -41,6 +40,7 @@ jobs:
           sudo apt-get install -y \
             clang \
             libclang-dev \
+            llvm-dev \
             dbus-x11 \
             gnome-keyring \
             libglib2.0-dev \
@@ -65,6 +65,9 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
+      - name: Set LIBCLANG_PATH
+        if: runner.os == 'Linux'
+        run: echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -118,6 +121,7 @@ jobs:
           sudo apt-get install -y \
             clang \
             libclang-dev \
+            llvm-dev \
             libglib2.0-dev \
             libssl-dev \
             libdbus-1-dev \
@@ -140,6 +144,9 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
+      - name: Set LIBCLANG_PATH
+        if: runner.os == 'Linux'
+        run: echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -190,6 +197,7 @@ jobs:
           sudo apt-get install -y \
             clang \
             libclang-dev \
+            llvm-dev \
             libglib2.0-dev \
             libssl-dev \
             libdbus-1-dev \
@@ -212,6 +220,9 @@ jobs:
             libjavascriptcoregtk-4.1-dev \
             libsoup-3.0-dev \
             libwebkit2gtk-4.1-dev
+      - name: Set LIBCLANG_PATH
+        if: runner.os == 'Linux'
+        run: echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
