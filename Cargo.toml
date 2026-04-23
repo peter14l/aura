@@ -25,6 +25,7 @@ serde_json       = "1"
 
 # UI
 slint            = "1.16"
+slint-build      = "1.16"
 
 # Security / Silo
 rusqlite         = { version = "0.37.0", features = ["bundled"] }
