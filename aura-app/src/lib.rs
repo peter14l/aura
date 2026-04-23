@@ -4,12 +4,12 @@ pub mod hot_swap;
 
 use aura_ui::{MainUI, TabNode};
 use hot_swap::{HotSwapManager, SwapError};
+use serde::Serialize;
 use slint::{ComponentHandle, Model, SharedString};
 use std::sync::Arc;
 use tauri::{Manager, State};
-use url::Url;
 use thiserror::Error;
-use serde::Serialize;
+use url::Url;
 
 #[derive(Debug, Error, Serialize)]
 pub enum AuraError {
@@ -21,7 +21,7 @@ pub enum AuraError {
 
 impl From<SwapError> for AuraError {
     fn from(err: SwapError) -> Self {
-         AuraError::EngineError(err.to_string())
+        AuraError::EngineError(err.to_string())
     }
 }
 
@@ -42,10 +42,10 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
         aura_net::InterceptDecision::Allow(target_url)
         | aura_net::InterceptDecision::Redirect(target_url) => {
             state.hot_swap.navigate(target_url.as_str()).await?;
-            
+
             let ui_weak = state.ui.clone();
             let target_url_str = target_url.to_string();
-            
+
             let _ = ui_weak.upgrade_in_event_loop({
                 let target_url_str = target_url_str.clone();
                 move |ui| {
@@ -61,8 +61,9 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
                     target_url_str.trim_end_matches('/')
                 ))
                 .await
-                && let Ok(bytes) = resp.bytes().await
-                && let Some(color) = aura_ui::extract_dominant_color(&bytes) {
+                    && let Ok(bytes) = resp.bytes().await
+                    && let Some(color) = aura_ui::extract_dominant_color(&bytes)
+                {
                     let _ = ui_weak_bg.upgrade_in_event_loop(move |ui| {
                         let tabs = ui.get_tabs();
                         let mut vec: Vec<TabNode> = tabs.iter().collect();
@@ -87,10 +88,13 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
 
 #[tauri::command]
 async fn toggle_command_bar(state: State<'_, AppState>) -> Result<(), String> {
-    state.ui.upgrade_in_event_loop(|ui| {
-        let current = ui.get_command_bar_visible();
-        ui.set_command_bar_visible(!current);
-    }).map_err(|e| e.to_string())?;
+    state
+        .ui
+        .upgrade_in_event_loop(|ui| {
+            let current = ui.get_command_bar_visible();
+            ui.set_command_bar_visible(!current);
+        })
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -143,30 +147,33 @@ async fn lotus_clicked(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 async fn add_tab(state: State<'_, AppState>, title: String, _url: String) -> Result<(), String> {
-    state.ui.upgrade_in_event_loop(move |ui| {
-        let tabs = ui.get_tabs();
-        let new_id = tabs.iter().map(|t| t.id).max().unwrap_or(0) + 1;
+    state
+        .ui
+        .upgrade_in_event_loop(move |ui| {
+            let tabs = ui.get_tabs();
+            let new_id = tabs.iter().map(|t| t.id).max().unwrap_or(0) + 1;
 
-        let glow_color = slint::Color::from_rgb_u8(212, 225, 209);
+            let glow_color = slint::Color::from_rgb_u8(212, 225, 209);
 
-        let node = TabNode {
-            id: new_id,
-            title: title.into(),
-            favicon: slint::Image::default(),
-            glow_color,
-            active: true,
-            pinned: false,
-        };
+            let node = TabNode {
+                id: new_id,
+                title: title.into(),
+                favicon: slint::Image::default(),
+                glow_color,
+                active: true,
+                pinned: false,
+            };
 
-        let mut vec: Vec<TabNode> = tabs.iter().collect();
-        for t in &mut vec {
-            t.active = false;
-        }
-        vec.push(node);
+            let mut vec: Vec<TabNode> = tabs.iter().collect();
+            for t in &mut vec {
+                t.active = false;
+            }
+            vec.push(node);
 
-        let model = std::rc::Rc::new(slint::VecModel::from(vec));
-        ui.set_tabs(slint::ModelRc::from(model));
-    }).map_err(|e| e.to_string())?;
+            let model = std::rc::Rc::new(slint::VecModel::from(vec));
+            ui.set_tabs(slint::ModelRc::from(model));
+        })
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -255,7 +262,9 @@ pub fn run() {
     });
 
     // Gestural Edge Detection
-    let win = app.get_webview_window("main").expect("Main window not found");
+    let win = app
+        .get_webview_window("main")
+        .expect("Main window not found");
     win.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(_) = event {
             // Example of a valid variant

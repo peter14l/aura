@@ -4,8 +4,8 @@ use libloading::{Library, Symbol};
 use std::ffi::{CString, c_char, c_void};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use thiserror::Error;
+use tokio::sync::Mutex;
 
 #[derive(Debug, Error)]
 pub enum SwapError {

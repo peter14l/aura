@@ -34,9 +34,10 @@ pub async fn init_adblock(urls: &[&str]) {
         let cache_path = cache_dir.join(file_name);
 
         let content = if let Ok(metadata) = std::fs::metadata(&cache_path) {
-            if metadata.modified().is_ok_and(|m| {
-                m.elapsed().is_ok_and(|e| e.as_secs() < 86400)
-            }) {
+            if metadata
+                .modified()
+                .is_ok_and(|m| m.elapsed().is_ok_and(|e| e.as_secs() < 86400))
+            {
                 std::fs::read_to_string(&cache_path).ok()
             } else {
                 None
