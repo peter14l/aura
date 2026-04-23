@@ -15,6 +15,8 @@ on:
 env:
   RUST_VERSION: "stable"
   CARGO_TERM_COLOR: always
+  BINDGEN_EXTRA_CLANG_ARGS: "-D__x86_64__"
+  LIBCLANG_PATH: "/usr/lib/llvm-14/lib"
 
 jobs:
   # ── Job 1: Vibe Check (lint + test) ─────────────────────────────────────
