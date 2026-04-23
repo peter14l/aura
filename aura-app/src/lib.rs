@@ -52,6 +52,17 @@ fn toggle_command_bar(state: State<'_, AppState>) {
     state.ui.set_command_bar_visible(!current);
 }
 
+#[tauri::command]
+async fn zen_summary(state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
+    // This would ideally get the current HTML from the engine
+    Ok(vec!["Aura is a sanctuary for focused browsing.".to_string()])
+}
+
+#[tauri::command]
+async fn silo_status(domain: String, _state: State<'_, AppState>) -> Result<bool, AuraError> {
+    Ok(true)
+}
+
 pub fn run() {
     let ui = aura_ui::create_ui();
     let hot_swap = Arc::new(HotSwapManager::new());
@@ -87,7 +98,7 @@ pub fn run() {
             });
 
             // Set up UI callbacks
-            let ui_handle = ui.as_weak();
+            let _ui_handle = ui.as_weak();
             let app_handle = app.handle().clone();
             ui.on_navigate(move |url| {
                 let app_handle = app_handle.clone();
@@ -103,7 +114,12 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![navigate, toggle_command_bar])
+        .invoke_handler(tauri::generate_handler![
+            navigate,
+            toggle_command_bar,
+            zen_summary,
+            silo_status
+        ])
         .run(tauri::generate_context!())
         .expect("Aura failed to launch");
 }
