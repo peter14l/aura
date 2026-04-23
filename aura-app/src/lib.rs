@@ -69,11 +69,13 @@ fn add_tab(state: State<'_, AppState>, title: String, _url: String) {
     let tabs = state.ui.get_tabs();
     let new_id = tabs.iter().map(|t| t.id).max().unwrap_or(0) + 1;
 
+    let glow_color = slint::Color::from_rgb_u8(212, 225, 209);
+
     let node = TabNode {
         id: new_id,
         title: title.into(),
         favicon: slint::Image::default(),
-        glow_color: slint::Color::from_rgb_u8(212, 225, 209), // Sage
+        glow_color,
         active: true,
         pinned: false,
     };
@@ -135,6 +137,27 @@ pub fn run() {
             let path = std::path::PathBuf::from(engine_path);
             tauri::async_runtime::spawn(async move {
                 let _ = hs.load_initial_engine(path).await;
+            });
+
+            // Gestural Edge Detection
+            let win = app.get_webview_window("main").expect("Main window not found");
+            let ui_gestures = ui.as_weak();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CursorMoved { position, .. } = event {
+                    if let Some(ui) = ui_gestures.upgrade() {
+                        let x = position.x;
+                        let y = position.y;
+                        
+                        // Left edge: Constellation
+                        ui.set_constellation_visible(x < 60.0);
+                        
+                        // Top edge: Address Ghost
+                        ui.set_address_ghost_visible(y < 60.0);
+                        
+                        // Bottom edge: Status Bar (Approximate window height)
+                        ui.set_status_bar_visible(y > 740.0);
+                    }
+                }
             });
 
             let app_handle = app.handle().clone();

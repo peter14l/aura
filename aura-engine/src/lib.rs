@@ -4,7 +4,12 @@ use std::ffi::{c_char, c_void, CStr, CString};
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
     current_url: String,
-    // servo_instance: Option<servo::Servo>,
+    config: EngineConfigInternal,
+}
+
+struct EngineConfigInternal {
+    user_agent: String,
+    placeholder: bool,
 }
 
 #[repr(C)]
@@ -22,7 +27,7 @@ pub struct EngineSnapshot {
 
 impl EngineContext {
     pub fn new_cold(config: &EngineConfig) -> Self {
-        let _ua = if !config.user_agent.is_null() {
+        let ua = if !config.user_agent.is_null() {
             unsafe { CStr::from_ptr(config.user_agent).to_string_lossy().into_owned() }
         } else {
             "Aura/1.0".to_string()
@@ -30,6 +35,10 @@ impl EngineContext {
         
         Self {
             current_url: String::new(),
+            config: EngineConfigInternal {
+                user_agent: ua,
+                placeholder: config.placeholder,
+            },
         }
     }
 
@@ -56,12 +65,13 @@ impl EngineContext {
 
     pub fn navigate(&mut self, url: &str) -> bool {
         self.current_url = url.to_string();
+        // In the future: servo.load_url(url)
         true
     }
 
-    pub fn release_gpu_surface(&mut self) {}
-
-    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {}
+    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
+        // Mock paint
+    }
 }
 
 #[no_mangle]
@@ -107,7 +117,6 @@ pub unsafe extern "C" fn aura_engine_freeze(
     let ctx = &mut *ctx;
     let snapshot = ctx.serialise_state();
     *out_snapshot = snapshot;
-    ctx.release_gpu_surface();
     true
 }
 
