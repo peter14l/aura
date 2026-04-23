@@ -9,9 +9,9 @@ export component CommandBar {
     opacity: show ? 1.0 : 0.0;
     animate opacity { duration: AuraTheme.breathe; easing: AuraTheme.ease-breathe; }
 
-    x: (parent.width - self.width) / 2;
-    y: parent.height * 0.32;   
-    width: min(parent.width * 0.55, 680px);
+    x: (100% - self.width) / 2;
+    y: 32%;   
+    width: min(55%, 680px);
     height: 52px;
 
     Rectangle {

@@ -9,9 +9,9 @@ export component BreatheOverlay {
     opacity: show ? 1.0 : 0.0;
     animate opacity { duration: 320ms; easing: ease-in-out; }
 
-    y: parent.height - self.height - 24px;
-    x: (parent.width - self.width) / 2;
-    width: min(parent.width * 0.6, 520px);
+    y: 100% - self.height - 24px;
+    x: (100% - self.width) / 2;
+    width: min(60%, 520px);
     height: 160px;
 
     Rectangle {
