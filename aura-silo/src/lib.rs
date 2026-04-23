@@ -139,8 +139,8 @@ impl SiloManager {
     }
 
     fn encrypt_value(&self, plaintext: &[u8]) -> Result<Vec<u8>, SiloError> {
-        let cipher = Aes256Gcm::new_from_slice(&self.master_key)
-            .map_err(|_| SiloError::EncryptionFailed)?;
+        let cipher =
+            Aes256Gcm::new_from_slice(&self.master_key).map_err(|_| SiloError::EncryptionFailed)?;
         let mut nonce_bytes = [0u8; 12];
         rand::thread_rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
