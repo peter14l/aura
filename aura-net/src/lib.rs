@@ -1,7 +1,7 @@
 // aura-net/src/lib.rs
 
-use adblock::Engine as AdblockEngine;
 use adblock::lists::{FilterSet, ParseOptions};
+use adblock::Engine as AdblockEngine;
 use once_cell::sync::Lazy;
 use sha2::Digest;
 use url::Url;
