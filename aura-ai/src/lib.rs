@@ -48,7 +48,7 @@ impl AiEngine {
         // Note: candle-transformers version might vary, this is a general structure
         let model = Model::from_gguf(gguf, &mut file, &device)?;
         let tokenizer = Tokenizer::from_pretrained("Qwen/Qwen2.5-1.5B-Instruct", None)
-            .map_err(|e| AiError::Tokenizer(e))?;
+            .map_err(AiError::Tokenizer)?;
 
         Ok(Self {
             model,
@@ -69,7 +69,7 @@ impl AiEngine {
         let tokens = self
             .tokenizer
             .encode(prompt, true)
-            .map_err(|e| AiError::Tokenizer(e))?;
+            .map_err(AiError::Tokenizer)?;
         let input = Tensor::new(tokens.get_ids(), &self.device)?.unsqueeze(0)?;
 
         // Simple greedy generation (simplified for skeleton)
@@ -85,7 +85,7 @@ impl AiEngine {
         let output = self
             .tokenizer
             .decode(&generated, true)
-            .map_err(|e| AiError::Tokenizer(e))?;
+            .map_err(AiError::Tokenizer)?;
         Ok(parse_bullets(&output))
     }
 }

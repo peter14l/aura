@@ -2,7 +2,7 @@
 
 use aes_gcm::{
     aead::{Aead, KeyInit},
-    Aes256Gcm, Key, Nonce,
+    Aes256Gcm, Nonce,
 };
 use rand::RngCore;
 use rusqlite::{params, Connection};
@@ -43,6 +43,9 @@ impl SiloManager {
         let master_key = match entry.get_password() {
             Ok(pw) => {
                 let decoded = hex::decode(pw).map_err(|_| SiloError::EncryptionFailed)?;
+                if decoded.len() != 32 {
+                    return Err(SiloError::EncryptionFailed);
+                }
                 let mut key = [0u8; 32];
                 key.copy_from_slice(&decoded);
                 key
@@ -118,7 +121,7 @@ impl SiloManager {
         let mut purged = 0usize;
         for entry in std::fs::read_dir(&self.base_dir)? {
             let path = entry?.path();
-            if path.extension().map_or(false, |e| e == "db") {
+            if path.extension().is_some_and(|e| e == "db") {
                 // Check pinned status
                 if let Ok(conn) = Connection::open(&path) {
                     let pinned: i32 = conn
@@ -146,7 +149,7 @@ impl SiloManager {
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         let ciphertext = cipher
-            .encrypt(&nonce, plaintext)
+            .encrypt(nonce, plaintext)
             .map_err(|_| SiloError::EncryptionFailed)?;
 
         // Prepend nonce so we can decrypt later: [12-byte nonce][ciphertext]
