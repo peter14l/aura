@@ -27,6 +27,7 @@ pub struct AppState {
     pub hot_swap: Arc<HotSwapManager>,
     pub ui: MainUI,
     pub ai: Arc<tokio::sync::Mutex<Option<aura_ai::AiEngine>>>,
+    pub silo: Arc<aura_silo::SiloManager>,
 }
 
 #[tauri::command]
@@ -113,9 +114,8 @@ async fn internal_lotus_clicked(state: &AppState) {
 }
 
 #[tauri::command]
-async fn lotus_clicked(state: State<'_, AppState>) -> Result<(), ()> {
+async fn lotus_clicked(state: State<'_, AppState>) {
     internal_lotus_clicked(&state).await;
-    Ok(())
 }
 
 #[tauri::command]
@@ -145,13 +145,32 @@ fn add_tab(state: State<'_, AppState>, title: String, _url: String) {
 }
 
 #[tauri::command]
-async fn zen_summary(_state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
-    Ok(vec!["Aura is a sanctuary for focused browsing.".to_string()])
+async fn zen_summary(state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
+    let ai_arc = state.ai.clone();
+    let mut ai_guard = ai_arc.lock().await;
+
+    if ai_guard.is_none() {
+        *ai_guard = aura_ai::AiEngine::load().await.ok();
+    }
+
+    if let Some(ai) = ai_guard.as_mut() {
+        // In a real app, get HTML from engine
+        let mock_html = "<html><body><p>Aura is a minimalist browser designed for focus and wellbeing.</p></body></html>";
+        ai.summarise(mock_html)
+            .await
+            .map_err(|e| AuraError::EngineError(e.to_string()))
+    } else {
+        Err(AuraError::EngineError("AI Engine failed to load".into()))
+    }
 }
 
 #[tauri::command]
-async fn silo_status(_domain: String, _state: State<'_, AppState>) -> Result<bool, AuraError> {
-    Ok(true)
+async fn silo_status(domain: String, state: State<'_, AppState>) -> Result<bool, AuraError> {
+    // A domain is "secured" if we can open its silo
+    match state.silo.open_silo(&domain) {
+        Ok(_) => Ok(true),
+        Err(e) => Err(AuraError::EngineError(format!("Silo error: {}", e))),
+    }
 }
 
 pub fn run() {
@@ -159,17 +178,20 @@ pub fn run() {
     let hot_swap = Arc::new(HotSwapManager::new());
     let ai = Arc::new(tokio::sync::Mutex::new(None));
 
-    let state = AppState {
-        hot_swap: hot_swap.clone(),
-        ui: ui.clone(),
-        ai,
-    };
-
     let silo_dir = dirs::home_dir()
         .expect("Could not find home directory")
         .join(".aura")
         .join("silos");
-    let _silo_manager = aura_silo::SiloManager::init(silo_dir).expect("Failed to initialize Silo");
+    std::fs::create_dir_all(&silo_dir).expect("Failed to create silo directory");
+    let silo_manager =
+        Arc::new(aura_silo::SiloManager::init(silo_dir).expect("Failed to initialize Silo"));
+
+    let state = AppState {
+        hot_swap: hot_swap.clone(),
+        ui: ui.clone(),
+        ai,
+        silo: silo_manager,
+    };
 
     tauri::Builder::default()
         .manage(state)
