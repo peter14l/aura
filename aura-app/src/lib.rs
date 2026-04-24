@@ -306,13 +306,18 @@ pub fn run() {
     let win_render = win.clone();
     tauri::async_runtime::spawn(async move {
         loop {
-            // In 2026, we can get a raw window handle from Tauri easily
-            if let Ok(handle) = win_render.window_handle() {
+            let surface = if let Ok(handle) = win_render.window_handle() {
                 let raw = handle.as_raw();
-                // Extract the surface pointer based on platform
-                // This is a simplification for the prototype
-                let surface = unsafe { std::mem::transmute(raw) };
-                let _ = h_swap_render.paint(surface).await;
+                match raw {
+                    raw_window_handle::RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+                    _ => std::ptr::null_mut(),
+                }
+            } else {
+                std::ptr::null_mut()
+            };
+
+            if !surface.is_null() {
+                let _ = h_swap_render.paint(hot_swap::SendableSurface(surface)).await;
             }
             tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
         }

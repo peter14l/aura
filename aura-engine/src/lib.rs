@@ -1,9 +1,9 @@
 // aura-engine/src/lib.rs
 use servo::input_events::{
-    ElementState, InputEvent, MouseButton, MouseButtonEvent, MouseMoveEvent,
+    InputEvent, MouseButton, MouseButtonAction, MouseButtonEvent, MouseMoveEvent,
 };
 use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder};
-use std::ffi::{CStr, CString, c_char, c_void};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::rc::Rc;
 use url::Url;
 
@@ -22,8 +22,26 @@ pub struct EngineContext {
 /// Minimal placeholder for a RenderingContext
 struct AuraRenderingContext;
 impl RenderingContext for AuraRenderingContext {
-    // Implement required methods for painting and buffer management
-    // These are simplified for the prototype
+    fn read_to_image(
+        &self,
+        _: servo::euclid::Box2D<i32, servo::DevicePixel>,
+    ) -> Option<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
+        None
+    }
+    fn size(&self) -> servo::dpi::PhysicalSize<u32> {
+        servo::dpi::PhysicalSize::new(1024, 768)
+    }
+    fn resize(&self, _: servo::dpi::PhysicalSize<u32>) {}
+    fn present(&self) {}
+    fn make_current(&self) -> Result<(), servo::surfman::Error> {
+        Ok(())
+    }
+    fn gleam_gl_api(&self) -> Rc<dyn servo::gleam::gl::Gl> {
+        todo!("Implement gleam_gl_api")
+    }
+    fn glow_gl_api(&self) -> std::sync::Arc<servo::glow::Context> {
+        todo!("Implement glow_gl_api")
+    }
 }
 
 #[repr(C)]
@@ -51,7 +69,7 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let servo = ServoBuilder::new().user_agent(ua).build();
+        let servo = ServoBuilder::default().user_agent(ua).build();
 
         // 2026: webview module might be private, so use WebViewBuilder from root
         let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext)).build();
@@ -70,7 +88,7 @@ impl EngineContext {
                 .into_owned();
             self.current_url = url.clone();
             if let Ok(parsed) = Url::parse(&url) {
-                self.webview.load_url(parsed);
+                self.webview.load(parsed);
             }
         }
         true
@@ -90,44 +108,34 @@ impl EngineContext {
     pub fn navigate(&mut self, url_str: &str) -> bool {
         if let Ok(url) = Url::parse(url_str) {
             self.current_url = url_str.to_string();
-            self.webview.load_url(url);
+            self.webview.load(url);
             return true;
         }
         false
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        self.servo.handle_events();
+        // In Servo 0.1.0, event loop handling might be different
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
-        // Since Point2D might not be in servo::euclid, we'll try to use it directly
-        // if it's available in the input_events or similar.
-        // For the sake of fixing the build, let's assume simple types if possible.
+        let point = servo::euclid::Point2D::new(x, y);
 
         let event = match event_type {
-            0 => InputEvent::MouseMove(MouseMoveEvent {
-                x,
-                y,
-                modifiers: Default::default(),
-            }),
+            0 => InputEvent::MouseMove(MouseMoveEvent { point }),
             1 => InputEvent::MouseButton(MouseButtonEvent {
                 button: MouseButton::Left,
-                state: ElementState::Pressed,
-                x,
-                y,
-                modifiers: Default::default(),
+                action: MouseButtonAction::Pressed,
+                point,
             }),
             2 => InputEvent::MouseButton(MouseButtonEvent {
                 button: MouseButton::Left,
-                state: ElementState::Released,
-                x,
-                y,
-                modifiers: Default::default(),
+                action: MouseButtonAction::Released,
+                point,
             }),
             _ => return,
         };
-        self.webview.handle_input_event(event);
+        self.webview.notify_input_event(event);
     }
 }
 

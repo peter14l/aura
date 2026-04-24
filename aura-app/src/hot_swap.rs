@@ -34,6 +34,10 @@ pub struct EngineSnapshot {
     pub placeholder: bool,
 }
 
+/// Safety wrapper for passing surface pointers across threads
+pub struct SendableSurface(pub *mut c_void);
+unsafe impl Send for SendableSurface {}
+
 pub struct LoadedEngine {
     lib: Library,
     ctx: *mut EngineContext,
@@ -143,10 +147,10 @@ impl HotSwapManager {
         }
     }
 
-    pub async fn paint(&self, surface: *mut c_void) -> Result<(), SwapError> {
+    pub async fn paint(&self, surface: SendableSurface) -> Result<(), SwapError> {
         let guard = self.current.lock().await;
         if let Some(engine) = guard.as_ref() {
-            engine.paint(surface)
+            engine.paint(surface.0)
         } else {
             Err(SwapError::InitFailed)
         }
