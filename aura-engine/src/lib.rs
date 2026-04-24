@@ -60,7 +60,7 @@ pub struct EngineSnapshot {
 
 impl EngineContext {
     pub fn new_cold(config: &EngineConfig) -> Self {
-        let ua = if !config.user_agent.is_null() {
+        let _ua = if !config.user_agent.is_null() {
             unsafe {
                 CStr::from_ptr(config.user_agent)
                     .to_string_lossy()

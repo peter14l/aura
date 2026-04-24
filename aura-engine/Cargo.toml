@@ -21,7 +21,7 @@ euclid = "0.22"
 dpi = "0.1"
 surfman = "0.11"
 gleam = "0.15"
-glow = "0.17"
+glow = "0.16"
 
 [lib]
 name = "aura_engine"
