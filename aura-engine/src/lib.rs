@@ -1,6 +1,8 @@
 // aura-engine/src/lib.rs
-use servo::input_events::{InputEvent, MouseButtonEvent, MouseMoveEvent, MouseButton, ElementState};
-use servo::{ServoBuilder, WebView, WebViewBuilder, RenderingContext};
+use servo::input_events::{
+    ElementState, InputEvent, MouseButton, MouseButtonEvent, MouseMoveEvent,
+};
+use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder};
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
@@ -49,13 +51,10 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let servo = ServoBuilder::new()
-            .user_agent(ua)
-            .build();
+        let servo = ServoBuilder::new().user_agent(ua).build();
 
         // 2026: webview module might be private, so use WebViewBuilder from root
-        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext))
-            .build();
+        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext)).build();
 
         Self {
             current_url: String::new(),
@@ -105,7 +104,7 @@ impl EngineContext {
         // Since Point2D might not be in servo::euclid, we'll try to use it directly
         // if it's available in the input_events or similar.
         // For the sake of fixing the build, let's assume simple types if possible.
-        
+
         let event = match event_type {
             0 => InputEvent::MouseMove(MouseMoveEvent {
                 x,
