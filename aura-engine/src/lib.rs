@@ -40,7 +40,7 @@ impl RenderingContext for AuraRenderingContext {
     fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl> {
         todo!("Implement gleam_gl_api")
     }
-    fn glow_gl_api(&self) -> std::sync::Arc<glow::Context> {
+    fn glow_gl_api(&self) -> std::sync::Arc<glow::native::Context> {
         todo!("Implement glow_gl_api")
     }
 }
@@ -70,7 +70,7 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let servo = ServoBuilder::default().user_agent(ua).build();
+        let servo = ServoBuilder::default().build();
 
         // 2026: webview module might be private, so use WebViewBuilder from root
         let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext)).build();
@@ -121,18 +121,22 @@ impl EngineContext {
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
         let point = Point2D::new(x, y);
+        let webview_point = servo::WebViewPoint::Device(point);
 
         let event = match event_type {
-            0 => InputEvent::MouseMove(MouseMoveEvent { point }),
+            0 => InputEvent::MouseMove(MouseMoveEvent {
+                point: webview_point,
+                is_compatibility_event_for_touch: false,
+            }),
             1 => InputEvent::MouseButton(MouseButtonEvent {
                 button: MouseButton::Left,
-                action: MouseButtonAction::Pressed,
-                point,
+                action: MouseButtonAction::Down,
+                point: webview_point,
             }),
             2 => InputEvent::MouseButton(MouseButtonEvent {
                 button: MouseButton::Left,
-                action: MouseButtonAction::Released,
-                point,
+                action: MouseButtonAction::Up,
+                point: webview_point,
             }),
             _ => return,
         };
