@@ -19,8 +19,11 @@ env:
 jobs:
   # ── Job 1: Vibe Check (lint + test) ─────────────────────────────────────
   vibe-check:
-    name: 🌿 Vibe Check
-    runs-on: ubuntu-latest
+    name: 🌿 Vibe Check — ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Cache system dependencies
@@ -69,6 +72,11 @@ jobs:
         run: |
           echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
           echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
+      - name: Set Windows Environment Variables
+        if: runner.os == 'Windows'
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
+        shell: bash
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -150,6 +158,11 @@ jobs:
         run: |
           echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
           echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
+      - name: Set Windows Environment Variables
+        if: runner.os == 'Windows'
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
+        shell: bash
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
@@ -228,6 +241,11 @@ jobs:
         run: |
           echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
           echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
+      - name: Set Windows Environment Variables
+        if: runner.os == 'Windows'
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
+        shell: bash
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
