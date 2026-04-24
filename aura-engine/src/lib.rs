@@ -16,6 +16,7 @@ use url::Url;
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
     current_url: String,
+    #[allow(dead_code)]
     servo: servo::Servo,
     webview: WebView,
 }
@@ -144,11 +145,16 @@ impl EngineContext {
     }
 }
 
+/// Get the version of the engine.
 #[unsafe(no_mangle)]
 pub extern "C" fn aura_engine_version() -> *const c_char {
     c"1.4.2".as_ptr()
 }
 
+/// Initialize the engine from a configuration.
+///
+/// # Safety
+/// The `config` pointer must be a valid, non-null pointer to an `EngineConfig` struct.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
     if config.is_null() {
@@ -158,6 +164,11 @@ pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *
     Box::into_raw(ctx)
 }
 
+/// Restore the engine from a snapshot.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
+/// The `snapshot` pointer must be a valid, non-null pointer to an `EngineSnapshot` struct.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
@@ -170,6 +181,11 @@ pub unsafe extern "C" fn aura_engine_warm_init(
     ctx.restore_from_snapshot(unsafe { &*snapshot })
 }
 
+/// Navigate to a URL.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
+/// The `url` pointer must be a valid, non-null C-style string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
     if ctx.is_null() || url.is_null() {
@@ -180,6 +196,11 @@ pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *con
     ctx.navigate(&url_str)
 }
 
+/// Freeze the current state of the engine into a snapshot.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
+/// The `out_snapshot` pointer must be a valid, non-null pointer to an `EngineSnapshot` struct.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
@@ -194,6 +215,11 @@ pub unsafe extern "C" fn aura_engine_freeze(
     true
 }
 
+/// Paint the current state of the engine to a surface.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
+/// The `surface` pointer must be a valid pointer to a rendering surface compatible with the engine.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
     if ctx.is_null() {
@@ -203,6 +229,10 @@ pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mu
     ctx.paint_to_surface(surface)
 }
 
+/// Send a mouse event to the engine.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_mouse_event(
     ctx: *mut EngineContext,
@@ -217,6 +247,11 @@ pub unsafe extern "C" fn aura_engine_mouse_event(
     ctx.handle_mouse_event(x, y, event_type);
 }
 
+/// Destroy the engine context and free its memory.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid pointer to an `EngineContext` struct previously returned by `aura_engine_cold_init`.
+/// After calling this, the pointer is no longer valid.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     if !ctx.is_null() {
@@ -224,6 +259,10 @@ pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     }
 }
 
+/// Free a snapshot previously returned by `aura_engine_freeze`.
+///
+/// # Safety
+/// The `snapshot` pointer must be a valid pointer to an `EngineSnapshot` struct.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_free_snapshot(snapshot: *mut EngineSnapshot) {
     if !snapshot.is_null() {
