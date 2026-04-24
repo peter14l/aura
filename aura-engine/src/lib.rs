@@ -3,7 +3,7 @@ use servo::input_events::{
     InputEvent, MouseButton, MouseButtonAction, MouseButtonEvent, MouseMoveEvent,
 };
 use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder};
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
 

@@ -309,7 +309,9 @@ pub fn run() {
             let surface = if let Ok(handle) = win_render.window_handle() {
                 let raw = handle.as_raw();
                 match raw {
-                    raw_window_handle::RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+                    raw_window_handle::RawWindowHandle::Win32(h) => {
+                        h.hwnd.get() as *mut std::ffi::c_void
+                    }
                     _ => std::ptr::null_mut(),
                 }
             } else {
@@ -317,7 +319,9 @@ pub fn run() {
             };
 
             if !surface.is_null() {
-                let _ = h_swap_render.paint(hot_swap::SendableSurface(surface)).await;
+                let _ = h_swap_render
+                    .paint(hot_swap::SendableSurface(surface))
+                    .await;
             }
             tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
         }
