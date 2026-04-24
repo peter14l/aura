@@ -1,11 +1,13 @@
 // aura-engine/src/lib.rs
-use std::ffi::{CStr, CString, c_char, c_void};
-use url::Url;
+use servo::euclid::Point2D;
+use servo::input_events::{
+    ElementState, InputEvent, MouseButton, MouseButtonEvent, MouseMoveEvent,
+};
 use servo::servo_builder::ServoBuilder;
 use servo::webview::{WebView, WebViewBuilder};
-use servo::input_events::{InputEvent, MouseButtonEvent, MouseMoveEvent, MouseButton, ElementState};
-use servo::euclid::Point2D;
+use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
+use url::Url;
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
@@ -46,13 +48,10 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let servo = ServoBuilder::new()
-            .user_agent(ua)
-            .build();
+        let servo = ServoBuilder::new().user_agent(ua).build();
 
         // In 2026, WebViewBuilder::new takes the servo instance and a rendering context
-        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext))
-            .build();
+        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext)).build();
 
         Self {
             current_url: String::new(),
