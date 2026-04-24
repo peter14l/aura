@@ -3,7 +3,7 @@ use euclid::{Box2D, Point2D};
 use servo::input_events::{
     InputEvent, MouseButton, MouseButtonAction, MouseButtonEvent, MouseMoveEvent,
 };
-use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder};
+use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder, glow};
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
@@ -40,7 +40,7 @@ impl RenderingContext for AuraRenderingContext {
     fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl> {
         todo!("Implement gleam_gl_api")
     }
-    fn glow_gl_api(&self) -> std::sync::Arc<glow::native::Context> {
+    fn glow_gl_api(&self) -> std::sync::Arc<glow::Context> {
         todo!("Implement glow_gl_api")
     }
 }
