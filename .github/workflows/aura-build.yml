@@ -174,7 +174,7 @@ jobs:
         include:
           - platform: windows
             os: windows-latest
-            bundle: exe
+            bundle: nsis
           - platform: linux
             os: ubuntu-22.04
             bundle: deb
