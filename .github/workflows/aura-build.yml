@@ -21,6 +21,7 @@ jobs:
   vibe-check:
     name: 🌿 Vibe Check — ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -97,6 +98,7 @@ jobs:
     name: 🔧 Build Engine — ${{ matrix.platform }}
     needs: vibe-check
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: windows
@@ -183,6 +185,7 @@ jobs:
     name: 📦 Bundle App — ${{ matrix.platform }}
     needs: build-engine
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: windows
