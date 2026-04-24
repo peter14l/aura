@@ -1,7 +1,7 @@
 // aura-engine/src/lib.rs
+use servo::{Embedder, EmbedderEvent, Servo, ServoOptions};
 use std::ffi::{CStr, CString, c_char, c_void};
 use url::Url;
-use servo::{Servo, ServoOptions, Embedder, EmbedderEvent};
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {

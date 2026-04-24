@@ -220,7 +220,11 @@ pub fn run() {
         Arc::new(aura_silo::SiloManager::init(silo_dir).expect("Failed to initialize Silo"));
 
     // Load initial engine
-    let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+    let exe_dir = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
     let engine_path = if cfg!(target_os = "windows") {
         exe_dir.join("aura_engine.dll")
     } else if cfg!(target_os = "macos") {
