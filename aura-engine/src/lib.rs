@@ -1,4 +1,5 @@
 // aura-engine/src/lib.rs
+use euclid::{Box2D, Point2D};
 use servo::input_events::{
     InputEvent, MouseButton, MouseButtonAction, MouseButtonEvent, MouseMoveEvent,
 };
@@ -24,22 +25,22 @@ struct AuraRenderingContext;
 impl RenderingContext for AuraRenderingContext {
     fn read_to_image(
         &self,
-        _: servo::euclid::Box2D<i32, servo::DevicePixel>,
+        _: Box2D<i32, servo::DevicePixel>,
     ) -> Option<image::ImageBuffer<image::Rgba<u8>, Vec<u8>>> {
         None
     }
-    fn size(&self) -> servo::dpi::PhysicalSize<u32> {
-        servo::dpi::PhysicalSize::new(1024, 768)
+    fn size(&self) -> dpi::PhysicalSize<u32> {
+        dpi::PhysicalSize::new(1024, 768)
     }
-    fn resize(&self, _: servo::dpi::PhysicalSize<u32>) {}
+    fn resize(&self, _: dpi::PhysicalSize<u32>) {}
     fn present(&self) {}
-    fn make_current(&self) -> Result<(), servo::surfman::Error> {
+    fn make_current(&self) -> Result<(), surfman::Error> {
         Ok(())
     }
-    fn gleam_gl_api(&self) -> Rc<dyn servo::gleam::gl::Gl> {
+    fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl> {
         todo!("Implement gleam_gl_api")
     }
-    fn glow_gl_api(&self) -> std::sync::Arc<servo::glow::Context> {
+    fn glow_gl_api(&self) -> std::sync::Arc<glow::Context> {
         todo!("Implement glow_gl_api")
     }
 }
@@ -119,7 +120,7 @@ impl EngineContext {
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
-        let point = servo::euclid::Point2D::new(x, y);
+        let point = Point2D::new(x, y);
 
         let event = match event_type {
             0 => InputEvent::MouseMove(MouseMoveEvent { point }),
