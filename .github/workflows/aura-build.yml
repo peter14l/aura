@@ -248,4 +248,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: aura-${{ matrix.platform }}-${{ matrix.bundle }}
-          path: aura-app/target/release/bundle/
+          path: target/release/bundle/
