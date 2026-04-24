@@ -69,6 +69,15 @@ impl LoadedEngine {
         }
         Ok(())
     }
+
+    pub fn mouse_event(&self, x: f32, y: f32, event_type: i32) -> Result<(), SwapError> {
+        unsafe {
+            let mouse_fn: Symbol<unsafe extern "C" fn(*mut EngineContext, f32, f32, i32)> =
+                self.lib.get(b"aura_engine_mouse_event")?;
+            mouse_fn(self.ctx, x, y, event_type);
+        }
+        Ok(())
+    }
 }
 
 impl Drop for LoadedEngine {
@@ -129,6 +138,24 @@ impl HotSwapManager {
         let guard = self.current.lock().await;
         if let Some(engine) = guard.as_ref() {
             engine.navigate(url)
+        } else {
+            Err(SwapError::InitFailed)
+        }
+    }
+
+    pub async fn paint(&self, surface: *mut c_void) -> Result<(), SwapError> {
+        let guard = self.current.lock().await;
+        if let Some(engine) = guard.as_ref() {
+            engine.paint(surface)
+        } else {
+            Err(SwapError::InitFailed)
+        }
+    }
+
+    pub async fn mouse_event(&self, x: f32, y: f32, event_type: i32) -> Result<(), SwapError> {
+        let guard = self.current.lock().await;
+        if let Some(engine) = guard.as_ref() {
+            engine.mouse_event(x, y, event_type)
         } else {
             Err(SwapError::InitFailed)
         }

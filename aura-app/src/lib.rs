@@ -219,6 +219,20 @@ pub fn run() {
     let silo_manager =
         Arc::new(aura_silo::SiloManager::init(silo_dir).expect("Failed to initialize Silo"));
 
+    // Load initial engine
+    let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
+    let engine_path = if cfg!(target_os = "windows") {
+        exe_dir.join("aura_engine.dll")
+    } else if cfg!(target_os = "macos") {
+        exe_dir.join("libaura_engine.dylib")
+    } else {
+        exe_dir.join("libaura_engine.so")
+    };
+
+    if engine_path.exists() {
+        let _ = tauri::async_runtime::block_on(hot_swap.load_initial_engine(engine_path));
+    }
+
     let state = AppState {
         hot_swap: hot_swap.clone(),
         ui: ui_weak.clone(),
@@ -261,6 +275,15 @@ pub fn run() {
         });
     });
 
+    let h_mouse = handle.clone();
+    ui.on_mouse_event(move |x, y, event_type| {
+        let h = h_mouse.clone();
+        tauri::async_runtime::spawn(async move {
+            let state: State<'_, AppState> = h.state();
+            let _ = state.hot_swap.mouse_event(x, y, event_type).await;
+        });
+    });
+
     // Gestural Edge Detection
     let win = app
         .get_webview_window("main")
@@ -272,6 +295,23 @@ pub fn run() {
     });
 
     ui.show().expect("Failed to show Slint UI");
+
+    // Start the render loop for Servo
+    let h_swap_render = hot_swap.clone();
+    let win_render = win.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            // In 2026, we can get a raw window handle from Tauri easily
+            if let Ok(handle) = win_render.window_handle() {
+                let raw = handle.as_raw();
+                // Extract the surface pointer based on platform
+                // This is a simplification for the prototype
+                let surface = unsafe { std::mem::transmute(raw) };
+                let _ = h_swap_render.paint(surface).await;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
+        }
+    });
 
     app.run(|_app_handle, _event| {});
 }

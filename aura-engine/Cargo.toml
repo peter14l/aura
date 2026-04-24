@@ -4,16 +4,20 @@ version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 servo = { workspace = true }
-tracing = { workspace = true }
 url = { workspace = true }
+tracing = { workspace = true }
 libloading = { workspace = true }
 once_cell = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 image = { workspace = true }
+wgpu = "22.1"
+raw-window-handle = "0.6"
+libc = "0.2"
+
+[lib]
+name = "aura_engine"
+crate-type = ["cdylib", "rlib"]

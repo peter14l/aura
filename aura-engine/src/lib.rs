@@ -1,20 +1,30 @@
 // aura-engine/src/lib.rs
 use std::ffi::{CStr, CString, c_char, c_void};
 use url::Url;
+use servo::{Servo, ServoOptions, Embedder, EmbedderEvent};
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
     current_url: String,
-    // Servo state
-    // Note: Servo initialization is complex and platform-dependent.
-    // This implementation sets up the core architecture for embedding Servo.
-    servo: Option<Box<ServoInstance>>,
+    servo: Servo<AuraEmbedder>,
 }
 
-struct ServoInstance {
-    // In a full implementation, this would hold the Servo instance,
-    // the compositor, and the event loop.
-    url: String,
+struct AuraEmbedder {
+    // 2026 Embedder implementation
+}
+
+impl Embedder for AuraEmbedder {
+    fn handle_event(&self, event: EmbedderEvent) {
+        match event {
+            EmbedderEvent::TitleChanged(title) => {
+                println!("Aura Engine: Title changed to {}", title);
+            }
+            EmbedderEvent::UrlChanged(url) => {
+                println!("Aura Engine: URL changed to {}", url);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[repr(C)]
@@ -32,22 +42,26 @@ pub struct EngineSnapshot {
 
 impl EngineContext {
     pub fn new_cold(config: &EngineConfig) -> Self {
-        let _ua = if !config.user_agent.is_null() {
+        let ua = if !config.user_agent.is_null() {
             unsafe {
                 CStr::from_ptr(config.user_agent)
                     .to_string_lossy()
                     .into_owned()
             }
         } else {
-            "Aura/1.0".to_string()
+            "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        // Initialize Servo components here
-        // For the cdylib, we establish the bridge to the servo crate
+        let options = ServoOptions {
+            user_agent: ua,
+            ..Default::default()
+        };
+
+        let servo = Servo::new(AuraEmbedder {}, options);
 
         Self {
             current_url: String::new(),
-            servo: Some(Box::new(ServoInstance { url: String::new() })),
+            servo,
         }
     }
 
@@ -57,9 +71,7 @@ impl EngineContext {
                 .to_string_lossy()
                 .into_owned();
             self.current_url = url.clone();
-            if let Some(ref mut instance) = self.servo {
-                instance.url = url;
-            }
+            self.servo.load_url(&url);
         }
         true
     }
@@ -70,48 +82,68 @@ impl EngineContext {
             .into_raw();
         EngineSnapshot {
             current_url: url_ptr,
-            scroll_x: 0.0,
+            scroll_x: 0.0, // In 2026 we'd query this from Servo
             scroll_y: 0.0,
         }
     }
 
     pub fn navigate(&mut self, url_str: &str) -> bool {
-        self.current_url = url_str.to_string();
-        if let Ok(url) = Url::parse(url_str)
-            && let Some(ref mut instance) = self.servo
-        {
-            instance.url = url.to_string();
-            // Real implementation: servo.load_url(url)
+        if let Ok(_) = Url::parse(url_str) {
+            self.current_url = url_str.to_string();
+            self.servo.load_url(url_str);
             return true;
         }
         false
     }
 
-    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // Here we would hook into Servo's compositor to render
-        // to the platform-specific surface (HWND, NSView, etc.)
+    pub fn paint_to_surface(&mut self, surface: *mut c_void) {
+        // In 2026, we pass the raw surface handle to Servo's wgpu compositor
+        // SAFETY: The shell ensures this surface is valid for the duration of the call
+        self.servo.repaint_on_surface(surface);
+    }
+
+    pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
+        let event = match event_type {
+            0 => servo::MouseEvent::Move,
+            1 => servo::MouseEvent::Down(servo::MouseButton::Left),
+            2 => servo::MouseEvent::Up(servo::MouseButton::Left),
+            _ => return,
+        };
+        self.servo.handle_mouse_event(x, y, event);
     }
 }
 
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub extern "C" fn aura_engine_version() -> *const c_char {
     c"1.4.2".as_ptr()
 }
 
-/// # Safety
-/// Caller must ensure config is a valid pointer.
-#[unsafe(no_mangle)]
+// ... existing code ...
+
+#[no_mangle]
+pub unsafe extern "C" fn aura_engine_mouse_event(
+    ctx: *mut EngineContext,
+    x: f32,
+    y: f32,
+    event_type: i32,
+) {
+    if ctx.is_null() {
+        return;
+    }
+    let ctx = unsafe { &mut *ctx };
+    ctx.handle_mouse_event(x, y, event_type);
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
     if config.is_null() {
         return std::ptr::null_mut();
     }
-    let ctx = unsafe { Box::new(EngineContext::new_cold(&*config)) };
+    let ctx = Box::new(EngineContext::new_cold(unsafe { &*config }));
     Box::into_raw(ctx)
 }
 
-/// # Safety
-/// Caller must ensure ctx and snapshot are valid pointers.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
     snapshot: *const EngineSnapshot,
@@ -123,9 +155,7 @@ pub unsafe extern "C" fn aura_engine_warm_init(
     ctx.restore_from_snapshot(unsafe { &*snapshot })
 }
 
-/// # Safety
-/// Caller must ensure ctx and url are valid pointers.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
     if ctx.is_null() || url.is_null() {
         return false;
@@ -135,9 +165,7 @@ pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *con
     ctx.navigate(&url_str)
 }
 
-/// # Safety
-/// Caller must ensure ctx and out_snapshot are valid pointers.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
     out_snapshot: *mut EngineSnapshot,
@@ -151,9 +179,7 @@ pub unsafe extern "C" fn aura_engine_freeze(
     true
 }
 
-/// # Safety
-/// Caller must ensure ctx and surface are valid pointers.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
     if ctx.is_null() {
         return;
@@ -162,18 +188,14 @@ pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mu
     ctx.paint_to_surface(surface)
 }
 
-/// # Safety
-/// Caller must take ownership of the returned pointer.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     if !ctx.is_null() {
         unsafe { drop(Box::from_raw(ctx)) }
     }
 }
 
-/// # Safety
-/// Caller must ensure snapshot is a valid pointer.
-#[unsafe(no_mangle)]
+#[no_mangle]
 pub unsafe extern "C" fn aura_engine_free_snapshot(snapshot: *mut EngineSnapshot) {
     if !snapshot.is_null() {
         let s = unsafe { &*snapshot };
