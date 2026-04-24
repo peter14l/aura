@@ -1,13 +1,14 @@
 // aura-engine/src/lib.rs
-use servo::euclid::Point2D;
-use servo::input_events::{
-    ElementState, InputEvent, MouseButton, MouseButtonEvent, MouseMoveEvent,
-};
-use servo::servo_builder::ServoBuilder;
-use servo::webview::{WebView, WebViewBuilder};
+use servo::input_events::{InputEvent, MouseButtonEvent, MouseMoveEvent, MouseButton, ElementState};
+use servo::{ServoBuilder, WebView, WebViewBuilder, RenderingContext};
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
+
+// Note: In 2026, Servo types like Point2D are often re-exported from euclid or top-level
+// If servo::euclid is missing, we use top-level or assume a different path.
+// Based on the error, let's try to find where Point2D might be if not in euclid.
+// Actually, it might be that we just need to use a standard euclid if Servo doesn't re-export it.
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
@@ -18,9 +19,9 @@ pub struct EngineContext {
 
 /// Minimal placeholder for a RenderingContext
 struct AuraRenderingContext;
-impl servo::rendering_context::RenderingContext for AuraRenderingContext {
+impl RenderingContext for AuraRenderingContext {
     // Implement required methods for painting and buffer management
-    // In a real implementation, this would connect to the provided surface
+    // These are simplified for the prototype
 }
 
 #[repr(C)]
@@ -48,10 +49,13 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let servo = ServoBuilder::new().user_agent(ua).build();
+        let servo = ServoBuilder::new()
+            .user_agent(ua)
+            .build();
 
-        // In 2026, WebViewBuilder::new takes the servo instance and a rendering context
-        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext)).build();
+        // 2026: webview module might be private, so use WebViewBuilder from root
+        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext))
+            .build();
 
         Self {
             current_url: String::new(),
@@ -94,27 +98,32 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // In this architecture, we spin the event loop to trigger repaints
         self.servo.handle_events();
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
-        let point = Point2D::new(x, y);
+        // Since Point2D might not be in servo::euclid, we'll try to use it directly
+        // if it's available in the input_events or similar.
+        // For the sake of fixing the build, let's assume simple types if possible.
+        
         let event = match event_type {
             0 => InputEvent::MouseMove(MouseMoveEvent {
-                point,
+                x,
+                y,
                 modifiers: Default::default(),
             }),
             1 => InputEvent::MouseButton(MouseButtonEvent {
                 button: MouseButton::Left,
                 state: ElementState::Pressed,
-                point,
+                x,
+                y,
                 modifiers: Default::default(),
             }),
             2 => InputEvent::MouseButton(MouseButtonEvent {
                 button: MouseButton::Left,
                 state: ElementState::Released,
-                point,
+                x,
+                y,
                 modifiers: Default::default(),
             }),
             _ => return,

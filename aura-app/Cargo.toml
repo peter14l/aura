@@ -21,6 +21,7 @@ slint = { workspace = true }
 url = { workspace = true }
 thiserror = { workspace = true }
 dirs = { workspace = true }
+raw-window-handle = "0.6"
 aura-net = { path = "../aura-net" }
 aura-ui = { path = "../aura-ui" }
 aura-silo = { path = "../aura-silo" }
