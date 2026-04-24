@@ -1,30 +1,24 @@
 // aura-engine/src/lib.rs
-use servo::{Embedder, EmbedderEvent, Servo, ServoOptions};
 use std::ffi::{CStr, CString, c_char, c_void};
 use url::Url;
+use servo::servo_builder::ServoBuilder;
+use servo::webview::{WebView, WebViewBuilder};
+use servo::input_events::{InputEvent, MouseButtonEvent, MouseMoveEvent, MouseButton, ElementState};
+use servo::euclid::Point2D;
+use std::rc::Rc;
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
     current_url: String,
-    servo: Servo<AuraEmbedder>,
+    servo: servo::Servo,
+    webview: WebView,
 }
 
-struct AuraEmbedder {
-    // 2026 Embedder implementation
-}
-
-impl Embedder for AuraEmbedder {
-    fn handle_event(&self, event: EmbedderEvent) {
-        match event {
-            EmbedderEvent::TitleChanged(title) => {
-                println!("Aura Engine: Title changed to {}", title);
-            }
-            EmbedderEvent::UrlChanged(url) => {
-                println!("Aura Engine: URL changed to {}", url);
-            }
-            _ => {}
-        }
-    }
+/// Minimal placeholder for a RenderingContext
+struct AuraRenderingContext;
+impl servo::rendering_context::RenderingContext for AuraRenderingContext {
+    // Implement required methods for painting and buffer management
+    // In a real implementation, this would connect to the provided surface
 }
 
 #[repr(C)]
@@ -52,16 +46,18 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let options = ServoOptions {
-            user_agent: ua,
-            ..Default::default()
-        };
+        let servo = ServoBuilder::new()
+            .user_agent(ua)
+            .build();
 
-        let servo = Servo::new(AuraEmbedder {}, options);
+        // In 2026, WebViewBuilder::new takes the servo instance and a rendering context
+        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext))
+            .build();
 
         Self {
             current_url: String::new(),
             servo,
+            webview,
         }
     }
 
@@ -71,7 +67,9 @@ impl EngineContext {
                 .to_string_lossy()
                 .into_owned();
             self.current_url = url.clone();
-            self.servo.load_url(&url);
+            if let Ok(parsed) = Url::parse(&url) {
+                self.webview.load_url(parsed);
+            }
         }
         true
     }
@@ -82,59 +80,56 @@ impl EngineContext {
             .into_raw();
         EngineSnapshot {
             current_url: url_ptr,
-            scroll_x: 0.0, // In 2026 we'd query this from Servo
+            scroll_x: 0.0,
             scroll_y: 0.0,
         }
     }
 
     pub fn navigate(&mut self, url_str: &str) -> bool {
-        if let Ok(_) = Url::parse(url_str) {
+        if let Ok(url) = Url::parse(url_str) {
             self.current_url = url_str.to_string();
-            self.servo.load_url(url_str);
+            self.webview.load_url(url);
             return true;
         }
         false
     }
 
-    pub fn paint_to_surface(&mut self, surface: *mut c_void) {
-        // In 2026, we pass the raw surface handle to Servo's wgpu compositor
-        // SAFETY: The shell ensures this surface is valid for the duration of the call
-        self.servo.repaint_on_surface(surface);
+    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
+        // In this architecture, we spin the event loop to trigger repaints
+        self.servo.handle_events();
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
+        let point = Point2D::new(x, y);
         let event = match event_type {
-            0 => servo::MouseEvent::Move,
-            1 => servo::MouseEvent::Down(servo::MouseButton::Left),
-            2 => servo::MouseEvent::Up(servo::MouseButton::Left),
+            0 => InputEvent::MouseMove(MouseMoveEvent {
+                point,
+                modifiers: Default::default(),
+            }),
+            1 => InputEvent::MouseButton(MouseButtonEvent {
+                button: MouseButton::Left,
+                state: ElementState::Pressed,
+                point,
+                modifiers: Default::default(),
+            }),
+            2 => InputEvent::MouseButton(MouseButtonEvent {
+                button: MouseButton::Left,
+                state: ElementState::Released,
+                point,
+                modifiers: Default::default(),
+            }),
             _ => return,
         };
-        self.servo.handle_mouse_event(x, y, event);
+        self.webview.handle_input_event(event);
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn aura_engine_version() -> *const c_char {
     c"1.4.2".as_ptr()
 }
 
-// ... existing code ...
-
-#[no_mangle]
-pub unsafe extern "C" fn aura_engine_mouse_event(
-    ctx: *mut EngineContext,
-    x: f32,
-    y: f32,
-    event_type: i32,
-) {
-    if ctx.is_null() {
-        return;
-    }
-    let ctx = unsafe { &mut *ctx };
-    ctx.handle_mouse_event(x, y, event_type);
-}
-
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *mut EngineContext {
     if config.is_null() {
         return std::ptr::null_mut();
@@ -143,7 +138,7 @@ pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *
     Box::into_raw(ctx)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_warm_init(
     ctx: *mut EngineContext,
     snapshot: *const EngineSnapshot,
@@ -155,7 +150,7 @@ pub unsafe extern "C" fn aura_engine_warm_init(
     ctx.restore_from_snapshot(unsafe { &*snapshot })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *const c_char) -> bool {
     if ctx.is_null() || url.is_null() {
         return false;
@@ -165,7 +160,7 @@ pub unsafe extern "C" fn aura_engine_navigate(ctx: *mut EngineContext, url: *con
     ctx.navigate(&url_str)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_freeze(
     ctx: *mut EngineContext,
     out_snapshot: *mut EngineSnapshot,
@@ -179,7 +174,7 @@ pub unsafe extern "C" fn aura_engine_freeze(
     true
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mut c_void) {
     if ctx.is_null() {
         return;
@@ -188,14 +183,28 @@ pub unsafe extern "C" fn aura_engine_paint(ctx: *mut EngineContext, surface: *mu
     ctx.paint_to_surface(surface)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aura_engine_mouse_event(
+    ctx: *mut EngineContext,
+    x: f32,
+    y: f32,
+    event_type: i32,
+) {
+    if ctx.is_null() {
+        return;
+    }
+    let ctx = unsafe { &mut *ctx };
+    ctx.handle_mouse_event(x, y, event_type);
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_destroy(ctx: *mut EngineContext) {
     if !ctx.is_null() {
         unsafe { drop(Box::from_raw(ctx)) }
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_free_snapshot(snapshot: *mut EngineSnapshot) {
     if !snapshot.is_null() {
         let s = unsafe { &*snapshot };

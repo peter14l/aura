@@ -4,6 +4,7 @@ pub mod hot_swap;
 
 use aura_ui::{MainUI, TabNode};
 use hot_swap::{HotSwapManager, SwapError};
+use raw_window_handle::HasWindowHandle;
 use serde::Serialize;
 use slint::{ComponentHandle, Model, SharedString};
 use std::sync::Arc;
