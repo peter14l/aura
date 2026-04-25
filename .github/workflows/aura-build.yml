@@ -164,8 +164,8 @@ jobs:
         with:
           name: aura-installer-${{ matrix.platform }}
           path: |
-            aura-app/target/release/bundle/msi/*.msi
-            aura-app/target/release/bundle/nsis/*.exe
-            aura-app/target/release/bundle/dmg/*.dmg
-            aura-app/target/release/bundle/deb/*.deb
-            aura-app/target/release/bundle/appimage/*.AppImage
+            target/release/bundle/msi/*.msi
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/deb/*.deb
+            target/release/bundle/appimage/*.AppImage
