@@ -25,7 +25,11 @@ pub struct EngineContext;
 
 #[repr(C)]
 pub struct EngineConfig {
+    pub user_agent: *const c_char,
     pub placeholder: bool,
+    pub window_handle: *mut c_void,
+    pub display_handle: *mut c_void,
+    pub platform: u32,
 }
 
 #[repr(C)]
@@ -82,6 +86,18 @@ impl LoadedEngine {
         }
         Ok(())
     }
+
+    pub fn resize(&self, width: u32, height: u32) -> Result<(), SwapError> {
+        unsafe {
+            if let Ok(resize_fn) = self
+                .lib
+                .get::<unsafe extern "C" fn(*mut EngineContext, u32, u32)>(b"aura_engine_resize")
+            {
+                resize_fn(self.ctx, width, height);
+            }
+        }
+        Ok(())
+    }
 }
 
 impl Drop for LoadedEngine {
@@ -114,20 +130,38 @@ impl HotSwapManager {
         }
     }
 
-    pub async fn load_initial_engine(&self, path: PathBuf) -> Result<(), SwapError> {
-        let engine = self.load_engine(path).await?;
+    pub async fn load_initial_engine(
+        &self,
+        path: PathBuf,
+        w_ptr: *mut c_void,
+        d_ptr: *mut c_void,
+        platform: u32,
+    ) -> Result<(), SwapError> {
+        let engine = self.load_engine(path, w_ptr, d_ptr, platform).await?;
         let mut guard = self.current.lock().await;
         *guard = Some(engine);
         Ok(())
     }
 
-    async fn load_engine(&self, path: PathBuf) -> Result<LoadedEngine, SwapError> {
+    async fn load_engine(
+        &self,
+        path: PathBuf,
+        w_ptr: *mut c_void,
+        d_ptr: *mut c_void,
+        platform: u32,
+    ) -> Result<LoadedEngine, SwapError> {
         unsafe {
             let lib = Library::new(&path)?;
             let cold_init: Symbol<unsafe extern "C" fn(*const EngineConfig) -> *mut EngineContext> =
                 lib.get(b"aura_engine_cold_init")?;
 
-            let config = EngineConfig { placeholder: true };
+            let config = EngineConfig {
+                user_agent: std::ptr::null(),
+                placeholder: true,
+                window_handle: w_ptr,
+                display_handle: d_ptr,
+                platform,
+            };
             let ctx = cold_init(&config);
 
             if ctx.is_null() {
@@ -160,6 +194,15 @@ impl HotSwapManager {
         let guard = self.current.lock().await;
         if let Some(engine) = guard.as_ref() {
             engine.mouse_event(x, y, event_type)
+        } else {
+            Err(SwapError::InitFailed)
+        }
+    }
+
+    pub async fn resize(&self, width: u32, height: u32) -> Result<(), SwapError> {
+        let guard = self.current.lock().await;
+        if let Some(engine) = guard.as_ref() {
+            engine.resize(width, height)
         } else {
             Err(SwapError::InitFailed)
         }

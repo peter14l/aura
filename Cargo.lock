@@ -775,6 +775,7 @@ dependencies = [
  "euclid",
  "gleam",
  "glow 0.16.0",
+ "glutin",
  "image",
  "libc",
  "libloading 0.9.0",

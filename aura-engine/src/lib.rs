@@ -8,10 +8,17 @@ use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
 
-// Note: In 2026, Servo types like Point2D are often re-exported from euclid or top-level
-// If servo::euclid is missing, we use top-level or assume a different path.
-// Based on the error, let's try to find where Point2D might be if not in euclid.
-// Actually, it might be that we just need to use a standard euclid if Servo doesn't re-export it.
+use glutin::config::{Config, ConfigTemplateBuilder, GlConfig};
+use glutin::context::{ContextApi, ContextAttributesBuilder, PossiblyCurrentContext, Version};
+use glutin::display::{Display, DisplayApiPreference, GlDisplay};
+use glutin::surface::{GlSurface, Surface, SurfaceAttributesBuilder, WindowSurface};
+use raw_window_handle::{
+    AppKitDisplayHandle, AppKitWindowHandle, RawDisplayHandle, RawWindowHandle,
+    WaylandDisplayHandle, WaylandWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
+    XlibDisplayHandle, XlibWindowHandle,
+};
+use std::num::NonZeroU32;
+use std::sync::{Arc, Mutex};
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
@@ -21,8 +28,131 @@ pub struct EngineContext {
     webview: WebView,
 }
 
-/// Minimal placeholder for a RenderingContext
-struct AuraRenderingContext;
+#[repr(C)]
+pub struct EngineConfig {
+    pub user_agent: *const c_char,
+    pub placeholder: bool,
+    pub window_handle: *mut c_void,
+    pub display_handle: *mut c_void,
+    pub platform: u32,
+}
+
+#[repr(C)]
+pub struct EngineSnapshot {
+    pub current_url: *mut c_char,
+    pub scroll_x: f32,
+    pub scroll_y: f32,
+}
+
+struct GlContext {
+    display: Display,
+    context: PossiblyCurrentContext,
+    surface: Surface<WindowSurface>,
+    glow: std::sync::Arc<glow::Context>,
+    gleam: std::rc::Rc<dyn gleam::gl::Gl>,
+}
+
+impl GlContext {
+    pub fn new(window_handle: RawWindowHandle, display_handle: RawDisplayHandle) -> Self {
+        let display = unsafe {
+            Display::new(
+                display_handle,
+                DisplayApiPreference::Wgl(Some(window_handle)),
+            )
+        }
+        .unwrap_or_else(|_| {
+            unsafe { Display::new(display_handle, DisplayApiPreference::Egl) }.unwrap_or_else(
+                |_| {
+                    unsafe {
+                        Display::new(
+                            display_handle,
+                            DisplayApiPreference::Glx(Some(window_handle)),
+                        )
+                    }
+                    .unwrap_or_else(|_| {
+                        unsafe { Display::new(display_handle, DisplayApiPreference::Cgl) }
+                            .expect("Failed to create Glutin Display")
+                    })
+                },
+            )
+        });
+
+        let template = ConfigTemplateBuilder::new().build();
+        let config = unsafe { display.find_configs(template) }
+            .unwrap()
+            .next()
+            .unwrap();
+
+        let context_attributes = ContextAttributesBuilder::new()
+            .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+            .build(Some(window_handle));
+
+        let fallback_context_attributes = ContextAttributesBuilder::new()
+            .with_context_api(ContextApi::Gles(Some(Version::new(2, 0))))
+            .build(Some(window_handle));
+
+        let not_current_context = unsafe {
+            display
+                .create_context(&config, &context_attributes)
+                .unwrap_or_else(|_| {
+                    display
+                        .create_context(&config, &fallback_context_attributes)
+                        .unwrap()
+                })
+        };
+
+        let attrs = SurfaceAttributesBuilder::<WindowSurface>::new().build(
+            window_handle,
+            NonZeroU32::new(1024).unwrap(),
+            NonZeroU32::new(768).unwrap(),
+        );
+
+        let gl_surface = unsafe { display.create_window_surface(&config, &attrs).unwrap() };
+
+        let gl_context = not_current_context.make_current(&gl_surface).unwrap();
+
+        let glow_context = unsafe {
+            glow::Context::from_loader_function(|s| {
+                let s = std::ffi::CString::new(s).unwrap();
+                display.get_proc_address(s.as_c_str())
+            })
+        };
+
+        let gleam_context = unsafe {
+            gleam::gl::GlFns::load_with(|s| {
+                let s = std::ffi::CString::new(s).unwrap();
+                display.get_proc_address(s.as_c_str())
+            })
+        };
+
+        Self {
+            display,
+            context: gl_context,
+            surface: gl_surface,
+            glow: std::sync::Arc::new(glow_context),
+            gleam: gleam_context,
+        }
+    }
+
+    pub fn make_current(&self) {
+        self.context.make_current(&self.surface).unwrap();
+    }
+
+    pub fn present(&self) {
+        self.surface.swap_buffers(&self.context).unwrap();
+    }
+
+    pub fn resize(&mut self, width: std::num::NonZeroU32, height: std::num::NonZeroU32) {
+        self.surface.resize(&self.context, width, height);
+    }
+}
+
+/// Real implementation for a RenderingContext
+struct AuraRenderingContext {
+    gl_context: Arc<Mutex<Option<GlContext>>>,
+    size: Arc<Mutex<dpi::PhysicalSize<u32>>>,
+}
+
 impl RenderingContext for AuraRenderingContext {
     fn read_to_image(
         &self,
@@ -31,35 +161,79 @@ impl RenderingContext for AuraRenderingContext {
         None
     }
     fn size(&self) -> dpi::PhysicalSize<u32> {
-        dpi::PhysicalSize::new(1024, 768)
+        *self.size.lock().unwrap()
     }
-    fn resize(&self, _: dpi::PhysicalSize<u32>) {}
-    fn present(&self) {}
+    fn resize(&self, new_size: dpi::PhysicalSize<u32>) {
+        *self.size.lock().unwrap() = new_size;
+        let mut guard = self.gl_context.lock().unwrap();
+        if let Some(ctx) = guard.as_mut() {
+            if let (Some(w), Some(h)) = (
+                std::num::NonZeroU32::new(new_size.width),
+                std::num::NonZeroU32::new(new_size.height),
+            ) {
+                ctx.resize(w, h);
+            }
+        }
+    }
+    fn present(&self) {
+        let guard = self.gl_context.lock().unwrap();
+        if let Some(ctx) = guard.as_ref() {
+            ctx.present();
+        }
+    }
     fn make_current(&self) -> Result<(), surfman::Error> {
+        let guard = self.gl_context.lock().unwrap();
+        if let Some(ctx) = guard.as_ref() {
+            ctx.make_current();
+        }
         Ok(())
     }
     fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl> {
-        unsafe { gleam::gl::GlFns::load_with(|_| std::ptr::null()) }
+        let guard = self.gl_context.lock().unwrap();
+        guard.as_ref().unwrap().gleam.clone()
     }
     fn glow_gl_api(&self) -> std::sync::Arc<glow::Context> {
-        #[allow(clippy::missing_safety_doc)]
-        unsafe {
-            std::sync::Arc::new(glow::Context::from_loader_function(|_| std::ptr::null()))
-        }
+        let guard = self.gl_context.lock().unwrap();
+        guard.as_ref().unwrap().glow.clone()
     }
 }
 
-#[repr(C)]
-pub struct EngineConfig {
-    pub user_agent: *const c_char,
-    pub placeholder: bool,
-}
-
-#[repr(C)]
-pub struct EngineSnapshot {
-    pub current_url: *mut c_char,
-    pub scroll_x: f32,
-    pub scroll_y: f32,
+fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHandle) {
+    match config.platform {
+        0 => {
+            // Windows
+            let mut w = Win32WindowHandle::new();
+            w.hwnd = std::num::NonZeroIsize::new(config.window_handle as isize);
+            (
+                RawWindowHandle::Win32(w),
+                RawDisplayHandle::Windows(WindowsDisplayHandle::new()),
+            )
+        }
+        1 => {
+            // macOS
+            let mut w =
+                AppKitWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
+            (
+                RawWindowHandle::AppKit(w),
+                RawDisplayHandle::AppKit(AppKitDisplayHandle::new()),
+            )
+        }
+        2 => {
+            // X11
+            let mut w = XlibWindowHandle::new(config.window_handle as u64);
+            let mut d = XlibDisplayHandle::new(std::ptr::NonNull::new(config.display_handle), 0);
+            (RawWindowHandle::Xlib(w), RawDisplayHandle::Xlib(d))
+        }
+        3 => {
+            // Wayland
+            let mut w =
+                WaylandWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
+            let mut d =
+                WaylandDisplayHandle::new(std::ptr::NonNull::new(config.display_handle).unwrap());
+            (RawWindowHandle::Wayland(w), RawDisplayHandle::Wayland(d))
+        }
+        _ => panic!("Unsupported platform"),
+    }
 }
 
 impl EngineContext {
@@ -76,8 +250,19 @@ impl EngineContext {
 
         let servo = ServoBuilder::default().build();
 
-        // 2026: webview module might be private, so use WebViewBuilder from root
-        let webview = WebViewBuilder::new(&servo, Rc::new(AuraRenderingContext)).build();
+        let gl_context = if config.window_handle.is_null() {
+            None
+        } else {
+            let (wh, dh) = reconstruct_handles(config);
+            Some(GlContext::new(wh, dh))
+        };
+
+        let rendering_context = AuraRenderingContext {
+            gl_context: Arc::new(Mutex::new(gl_context)),
+            size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
+        };
+
+        let webview = WebViewBuilder::new(&servo, Rc::new(rendering_context)).build();
 
         Self {
             current_url: String::new(),
@@ -120,7 +305,8 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // In Servo 0.1.0, event loop handling might be different
+        // Just pump servo and composite
+        self.servo.handle_events(vec![]);
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
@@ -248,6 +434,27 @@ pub unsafe extern "C" fn aura_engine_mouse_event(
     }
     let ctx = unsafe { &mut *ctx };
     ctx.handle_mouse_event(x, y, event_type);
+}
+
+/// Send a resize event to the engine.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aura_engine_resize(ctx: *mut EngineContext, width: u32, height: u32) {
+    if ctx.is_null() {
+        return;
+    }
+    let ctx = unsafe { &mut *ctx };
+    let size = servo::euclid::Size2D::new(width as i32, height as i32);
+    let event = servo::input_events::InputEvent::Resize(servo::input_events::ResizeEvent {
+        size: servo::euclid::Size2D::new(size.width as f32, size.height as f32),
+    });
+    ctx.webview.notify_input_event(event);
+
+    // Resize the underlying gl surface
+    let rc = ctx.webview.rendering_context();
+    rc.resize(dpi::PhysicalSize::new(width, height));
 }
 
 /// Destroy the engine context and free its memory.

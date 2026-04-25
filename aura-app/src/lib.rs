@@ -219,8 +219,17 @@ async fn silo_status(domain: String, state: State<'_, AppState>) -> Result<bool,
 }
 
 pub fn run() {
-    let ui = aura_ui::create_ui();
-    let ui_weak = ui.as_weak();
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    std::thread::spawn(move || {
+        let ui = aura_ui::create_ui();
+        tx.send(ui.as_weak()).unwrap();
+
+        ui.show().expect("Failed to show Slint UI");
+        slint::run_event_loop().expect("Slint event loop failed");
+    });
+
+    let ui_weak = rx.recv().unwrap();
     let hot_swap = Arc::new(HotSwapManager::new());
     let ai = Arc::new(tokio::sync::Mutex::new(None));
 
@@ -285,13 +294,57 @@ pub fn run() {
                 resource_dir.join(engine_filename),
             ];
 
+            let (w_ptr, d_ptr, plat) = if let Some(win) = app.get_webview_window("main") {
+                if let (Ok(wh), Ok(dh)) = (win.window_handle(), win.display_handle()) {
+                    match (wh.as_raw(), dh.as_raw()) {
+                        (
+                            raw_window_handle::RawWindowHandle::Win32(w),
+                            raw_window_handle::RawDisplayHandle::Windows(d),
+                        ) => (
+                            w.hwnd.get() as *mut std::ffi::c_void,
+                            std::ptr::null_mut(),
+                            0,
+                        ),
+                        (
+                            raw_window_handle::RawWindowHandle::AppKit(w),
+                            raw_window_handle::RawDisplayHandle::AppKit(d),
+                        ) => (
+                            w.ns_view.as_ptr() as *mut std::ffi::c_void,
+                            std::ptr::null_mut(),
+                            1,
+                        ),
+                        (
+                            raw_window_handle::RawWindowHandle::Xlib(w),
+                            raw_window_handle::RawDisplayHandle::Xlib(d),
+                        ) => (
+                            w.window as *mut std::ffi::c_void,
+                            d.display as *mut std::ffi::c_void,
+                            2,
+                        ),
+                        (
+                            raw_window_handle::RawWindowHandle::Wayland(w),
+                            raw_window_handle::RawDisplayHandle::Wayland(d),
+                        ) => (
+                            w.surface.as_ptr() as *mut std::ffi::c_void,
+                            d.display.as_ptr() as *mut std::ffi::c_void,
+                            3,
+                        ),
+                        _ => (std::ptr::null_mut(), std::ptr::null_mut(), 0),
+                    }
+                } else {
+                    (std::ptr::null_mut(), std::ptr::null_mut(), 0)
+                }
+            } else {
+                (std::ptr::null_mut(), std::ptr::null_mut(), 0)
+            };
+
             for path in paths_to_check {
                 if path.exists() {
                     tracing::info!("Attempting to load engine from {:?}", path);
                     let h = hot_swap.clone();
                     let p = path.clone();
                     tauri::async_runtime::spawn(async move {
-                        if let Err(e) = h.load_initial_engine(p.clone()).await {
+                        if let Err(e) = h.load_initial_engine(p.clone(), w_ptr, d_ptr, plat).await {
                             tracing::error!("Failed to load engine from {:?}: {}", p, e);
                         } else {
                             tracing::info!("Engine loaded successfully from {:?}", p);
@@ -315,8 +368,17 @@ pub fn run() {
                         let surface = if let Ok(handle) = win_render.window_handle() {
                             let raw = handle.as_raw();
                             match raw {
-                                raw_window_handle::RawWindowHandle::Win32(h) => {
-                                    h.hwnd.get() as *mut std::ffi::c_void
+                                raw_window_handle::RawWindowHandle::Win32(w) => {
+                                    w.hwnd.get() as *mut std::ffi::c_void
+                                }
+                                raw_window_handle::RawWindowHandle::AppKit(w) => {
+                                    w.ns_view.as_ptr() as *mut std::ffi::c_void
+                                }
+                                raw_window_handle::RawWindowHandle::Xlib(w) => {
+                                    w.window as *mut std::ffi::c_void
+                                }
+                                raw_window_handle::RawWindowHandle::Wayland(w) => {
+                                    w.surface.as_ptr() as *mut std::ffi::c_void
                                 }
                                 _ => std::ptr::null_mut(),
                             }
@@ -344,37 +406,53 @@ pub fn run() {
     let handle = app.handle().clone();
 
     // Slint callbacks
-    let h_nav = handle.clone();
-    ui.on_navigate(move |url| {
-        let h = h_nav.clone();
-        let url = url.to_string();
-        tauri::async_runtime::spawn(async move {
-            let state: State<'_, AppState> = h.state();
-            let _ = navigate(url, state).await;
+    let _ = ui_weak.upgrade_in_event_loop(move |ui| {
+        let h_nav = handle.clone();
+        ui.on_navigate(move |url| {
+            let h = h_nav.clone();
+            let url = url.to_string();
+            tauri::async_runtime::spawn(async move {
+                let state: State<'_, AppState> = h.state();
+                let _ = navigate(url, state).await;
+            });
         });
+
+        let h_lotus = handle.clone();
+        ui.on_lotus_clicked(move || {
+            let h = h_lotus.clone();
+            tauri::async_runtime::spawn(async move {
+                let state: State<'_, AppState> = h.state();
+                let _ = lotus_clicked(state).await;
+            });
+        });
+
+        let h_mouse = handle.clone();
+        ui.on_mouse_event(move |x, y, event_type| {
+            let h = h_mouse.clone();
+            tauri::async_runtime::spawn(async move {
+                let state: State<'_, AppState> = h.state();
+                let _ = state.hot_swap.mouse_event(x, y, event_type).await;
+            });
+        });
+
+        ui.set_command_bar_visible(true);
+        ui.set_status_bar_visible(true);
     });
 
-    let h_lotus = handle.clone();
-    ui.on_lotus_clicked(move || {
-        let h = h_lotus.clone();
-        tauri::async_runtime::spawn(async move {
-            let state: State<'_, AppState> = h.state();
-            let _ = lotus_clicked(state).await;
+    let h_event = handle.clone();
+    if let Some(win) = h_event.get_webview_window("main") {
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                let h = h_event.clone();
+                let width = size.width;
+                let height = size.height;
+                tauri::async_runtime::spawn(async move {
+                    let state: State<'_, AppState> = h.state();
+                    let _ = state.hot_swap.resize(width, height).await;
+                });
+            }
         });
-    });
-
-    let h_mouse = handle.clone();
-    ui.on_mouse_event(move |x, y, event_type| {
-        let h = h_mouse.clone();
-        tauri::async_runtime::spawn(async move {
-            let state: State<'_, AppState> = h.state();
-            let _ = state.hot_swap.mouse_event(x, y, event_type).await;
-        });
-    });
-
-    ui.set_command_bar_visible(true);
-    ui.set_status_bar_visible(true);
-    ui.show().expect("Failed to show Slint UI");
+    }
 
     app.run(|_app_handle, _event| {});
 }
