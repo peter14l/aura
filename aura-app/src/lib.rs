@@ -7,8 +7,9 @@ use hot_swap::{HotSwapManager, SwapError};
 use raw_window_handle::HasWindowHandle;
 use serde::Serialize;
 use slint::{ComponentHandle, Model, SharedString};
+use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{Manager, State};
+use tauri::{Manager, State, WebviewWindowBuilder};
 use thiserror::Error;
 use url::Url;
 
@@ -337,9 +338,9 @@ pub fn run() {
     });
 
     // Gestural Edge Detection
-    let win = app.get_window("main").unwrap_or_else(|| {
+    let win = app.get_webview_window("main").unwrap_or_else(|| {
         tracing::info!("Main window 'main' not found in config, creating programmatically");
-        tauri::window::WindowBuilder::new(&app, "main")
+        WebviewWindowBuilder::new(&app, "main", tauri::WebviewUrl::App("index.html".into()))
             .title("Aura")
             .inner_size(1200.0, 800.0)
             .decorations(false)
