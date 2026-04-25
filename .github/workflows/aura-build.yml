@@ -15,6 +15,10 @@ env:
   RUST_VERSION: "stable"
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   # ── Job 1: Vibe Check (Parallel) ─────────────────────────────────────────
   vibe-check:
@@ -68,8 +72,6 @@ jobs:
   # ── Job 2: Unified Build & Bundle ───────────────────────────────────────
   build:
     name: 📦 Build — ${{ matrix.platform }}
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
