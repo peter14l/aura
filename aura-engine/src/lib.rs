@@ -8,8 +8,11 @@ use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
 
-use glutin::config::{Config, ConfigTemplateBuilder, GlConfig};
-use glutin::context::{ContextApi, ContextAttributesBuilder, PossiblyCurrentContext, Version};
+use glutin::config::{ConfigTemplateBuilder, GlConfig};
+use glutin::context::{
+    ContextApi, ContextAttributesBuilder, NotCurrentGlContext, PossiblyCurrentContext,
+    PossiblyCurrentGlContext, Version,
+};
 use glutin::display::{Display, DisplayApiPreference, GlDisplay};
 use glutin::surface::{GlSurface, Surface, SurfaceAttributesBuilder, WindowSurface};
 use raw_window_handle::{
@@ -54,27 +57,28 @@ struct GlContext {
 
 impl GlContext {
     pub fn new(window_handle: RawWindowHandle, display_handle: RawDisplayHandle) -> Self {
-        let display = unsafe {
-            Display::new(
-                display_handle,
-                DisplayApiPreference::Wgl(Some(window_handle)),
-            )
-        }
-        .unwrap_or_else(|_| {
-            unsafe { Display::new(display_handle, DisplayApiPreference::Egl) }.unwrap_or_else(
-                |_| {
-                    unsafe {
-                        Display::new(
-                            display_handle,
-                            DisplayApiPreference::Glx(Some(window_handle)),
-                        )
-                    }
-                    .unwrap_or_else(|_| {
-                        unsafe { Display::new(display_handle, DisplayApiPreference::Cgl) }
-                            .expect("Failed to create Glutin Display")
-                    })
-                },
-            )
+        #[cfg(target_os = "windows")]
+        let pref = DisplayApiPreference::Wgl(Some(window_handle));
+        #[cfg(target_os = "macos")]
+        let pref = DisplayApiPreference::Cgl;
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let pref = DisplayApiPreference::Egl;
+
+        let display = unsafe { Display::new(display_handle, pref) }.unwrap_or_else(|_| {
+            #[cfg(all(unix, not(target_os = "macos")))]
+            {
+                unsafe {
+                    Display::new(
+                        display_handle,
+                        DisplayApiPreference::Glx(Some(window_handle)),
+                    )
+                }
+                .expect("Failed to create Glutin Display")
+            }
+            #[cfg(not(all(unix, not(target_os = "macos"))))]
+            {
+                panic!("Failed to create Glutin Display")
+            }
         });
 
         let template = ConfigTemplateBuilder::new().build();
@@ -202,8 +206,9 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
     match config.platform {
         0 => {
             // Windows
-            let mut w = Win32WindowHandle::new();
-            w.hwnd = std::num::NonZeroIsize::new(config.window_handle as isize);
+            let mut w = Win32WindowHandle::new(
+                std::num::NonZeroIsize::new(config.window_handle as isize).expect("Invalid HWND"),
+            );
             (
                 RawWindowHandle::Win32(w),
                 RawDisplayHandle::Windows(WindowsDisplayHandle::new()),
@@ -305,12 +310,12 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // Just pump servo and composite
-        self.servo.handle_events(vec![]);
+        // Trigger composite
+        let _ = self.webview.request_composite();
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
-        let point = Point2D::new(x, y);
+        let point = euclid::Point2D::new(x, y);
         let webview_point = servo::WebViewPoint::Device(point);
 
         let event = match event_type {
@@ -446,15 +451,8 @@ pub unsafe extern "C" fn aura_engine_resize(ctx: *mut EngineContext, width: u32,
         return;
     }
     let ctx = unsafe { &mut *ctx };
-    let size = servo::euclid::Size2D::new(width as i32, height as i32);
-    let event = servo::input_events::InputEvent::Resize(servo::input_events::ResizeEvent {
-        size: servo::euclid::Size2D::new(size.width as f32, size.height as f32),
-    });
-    ctx.webview.notify_input_event(event);
-
-    // Resize the underlying gl surface
-    let rc = ctx.webview.rendering_context();
-    rc.resize(dpi::PhysicalSize::new(width, height));
+    let size = euclid::Size2D::new(width as f32, height as f32);
+    ctx.webview.resize(size.to_device());
 }
 
 /// Destroy the engine context and free its memory.
