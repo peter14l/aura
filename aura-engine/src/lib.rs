@@ -67,13 +67,8 @@ impl GlContext {
         let display = unsafe { Display::new(display_handle, pref) }.unwrap_or_else(|_| {
             #[cfg(all(unix, not(target_os = "macos")))]
             {
-                unsafe {
-                    Display::new(
-                        display_handle,
-                        DisplayApiPreference::Glx(Box::new(|_| {})),
-                    )
-                }
-                .expect("Failed to create Glutin Display")
+                unsafe { Display::new(display_handle, DisplayApiPreference::Glx(Box::new(|_| {}))) }
+                    .expect("Failed to create Glutin Display")
             }
             #[cfg(not(all(unix, not(target_os = "macos"))))]
             {
@@ -216,8 +211,7 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
         }
         1 => {
             // macOS
-            let w =
-                AppKitWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
+            let w = AppKitWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
             (
                 RawWindowHandle::AppKit(w),
                 RawDisplayHandle::AppKit(AppKitDisplayHandle::new()),
@@ -231,8 +225,7 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
         }
         3 => {
             // Wayland
-            let w =
-                WaylandWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
+            let w = WaylandWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
             let d =
                 WaylandDisplayHandle::new(std::ptr::NonNull::new(config.display_handle).unwrap());
             (RawWindowHandle::Wayland(w), RawDisplayHandle::Wayland(d))
