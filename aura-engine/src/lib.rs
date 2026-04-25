@@ -1,5 +1,5 @@
 // aura-engine/src/lib.rs
-use euclid::{Box2D, Point2D};
+use euclid::Box2D;
 use servo::input_events::{
     InputEvent, MouseButton, MouseButtonAction, MouseButtonEvent, MouseMoveEvent,
 };
@@ -8,7 +8,7 @@ use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
 use url::Url;
 
-use glutin::config::{ConfigTemplateBuilder, GlConfig};
+use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{
     ContextApi, ContextAttributesBuilder, NotCurrentGlContext, PossiblyCurrentContext,
     PossiblyCurrentGlContext, Version,
@@ -70,7 +70,7 @@ impl GlContext {
                 unsafe {
                     Display::new(
                         display_handle,
-                        DisplayApiPreference::Glx(Some(window_handle)),
+                        DisplayApiPreference::Glx(Box::new(|_| {})),
                     )
                 }
                 .expect("Failed to create Glutin Display")
@@ -206,7 +206,7 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
     match config.platform {
         0 => {
             // Windows
-            let mut w = Win32WindowHandle::new(
+            let w = Win32WindowHandle::new(
                 std::num::NonZeroIsize::new(config.window_handle as isize).expect("Invalid HWND"),
             );
             (
@@ -216,7 +216,7 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
         }
         1 => {
             // macOS
-            let mut w =
+            let w =
                 AppKitWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
             (
                 RawWindowHandle::AppKit(w),
@@ -231,9 +231,9 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
         }
         3 => {
             // Wayland
-            let mut w =
+            let w =
                 WaylandWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());
-            let mut d =
+            let d =
                 WaylandDisplayHandle::new(std::ptr::NonNull::new(config.display_handle).unwrap());
             (RawWindowHandle::Wayland(w), RawDisplayHandle::Wayland(d))
         }
@@ -310,8 +310,8 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // Trigger composite
-        let _ = self.webview.request_composite();
+        // Trigger paint
+        self.webview.paint();
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
@@ -451,8 +451,8 @@ pub unsafe extern "C" fn aura_engine_resize(ctx: *mut EngineContext, width: u32,
         return;
     }
     let ctx = unsafe { &mut *ctx };
-    let size = euclid::Size2D::new(width as f32, height as f32);
-    ctx.webview.resize(size.to_device());
+    let size = dpi::PhysicalSize::new(width, height);
+    ctx.webview.resize(size);
 }
 
 /// Destroy the engine context and free its memory.
