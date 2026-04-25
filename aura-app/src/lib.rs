@@ -36,6 +36,7 @@ pub struct AppState {
 
 #[tauri::command]
 async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraError> {
+    let state = &*state;
     let parsed = if url.contains(' ') || (!url.contains('.') && !url.starts_with("localhost")) {
         Url::parse_with_params("https://duckduckgo.com/", &[("q", &url)])
             .map_err(|_| AuraError::InvalidUrl(url.clone()))?
@@ -100,6 +101,7 @@ async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraErr
 
 #[tauri::command]
 async fn toggle_command_bar(state: State<'_, AppState>) -> Result<(), String> {
+    let state = &*state;
     state
         .ui
         .upgrade_in_event_loop(|ui| {
@@ -153,12 +155,13 @@ async fn internal_lotus_clicked(state: &AppState) {
 
 #[tauri::command]
 async fn lotus_clicked(state: State<'_, AppState>) -> Result<(), String> {
-    internal_lotus_clicked(&state).await;
+    internal_lotus_clicked(&*state).await;
     Ok(())
 }
 
 #[tauri::command]
 async fn add_tab(state: State<'_, AppState>, title: String, _url: String) -> Result<(), String> {
+    let state = &*state;
     state
         .ui
         .upgrade_in_event_loop(move |ui| {
@@ -191,6 +194,7 @@ async fn add_tab(state: State<'_, AppState>, title: String, _url: String) -> Res
 
 #[tauri::command]
 async fn zen_summary(state: State<'_, AppState>) -> Result<Vec<String>, AuraError> {
+    let state = &*state;
     let ai_arc = state.ai.clone();
     let mut ai_guard = ai_arc.lock().await;
 
@@ -211,6 +215,7 @@ async fn zen_summary(state: State<'_, AppState>) -> Result<Vec<String>, AuraErro
 
 #[tauri::command]
 async fn silo_status(domain: String, state: State<'_, AppState>) -> Result<bool, AuraError> {
+    let state = &*state;
     // A domain is "secured" if we can open its silo
     match state.silo.open_silo(&domain) {
         Ok(_) => Ok(true),

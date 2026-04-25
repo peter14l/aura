@@ -116,7 +116,7 @@ impl Drop for LoadedEngine {
 pub struct HotSwapManager {
     current: Arc<Mutex<Option<LoadedEngine>>>,
     // Store handles for shadow instance initialization
-    handles: Mutex<Option<(*mut c_void, *mut c_void, u32)>>,
+    handles: Mutex<Option<(SendableSurface, SendableSurface, u32)>>,
 }
 
 impl Default for HotSwapManager {
@@ -142,7 +142,7 @@ impl HotSwapManager {
     ) -> Result<(), SwapError> {
         {
             let mut h_guard = self.handles.lock().await;
-            *h_guard = Some((w_ptr, d_ptr, platform));
+            *h_guard = Some((SendableSurface(w_ptr), SendableSurface(d_ptr), platform));
         }
         let engine = self.load_engine(path, w_ptr, d_ptr, platform).await?;
         let mut guard = self.current.lock().await;
@@ -219,7 +219,8 @@ impl HotSwapManager {
         // Phase A: Load shadow instance
         let (w, d, p) = {
             let h_guard = self.handles.lock().await;
-            h_guard.ok_or(SwapError::InitFailed)?
+            let (w, d, p) = h_guard.as_ref().ok_or(SwapError::InitFailed)?;
+            (w.0, d.0, *p)
         };
         let new_engine = self.load_engine(new_dylib, w, d, p).await?;
 
