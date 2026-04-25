@@ -222,7 +222,9 @@ impl HotSwapManager {
             let (w, d, p) = h_guard.as_ref().ok_or(SwapError::InitFailed)?;
             (w.0, d.0, *p)
         };
-        let new_engine = self.load_engine(new_dylib, SendableSurface(w), SendableSurface(d), p).await?;
+        let new_engine = self
+            .load_engine(new_dylib, SendableSurface(w), SendableSurface(d), p)
+            .await?;
 
         // Phase B: Serialise state
         let mut guard = self.current.lock().await;
