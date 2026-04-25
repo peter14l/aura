@@ -17,6 +17,13 @@
     }]
   },
   "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "resources/aura_engine.dll",
+      "resources/libaura_engine.so",
+      "resources/libaura_engine.dylib"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -1,5 +1,4 @@
 # .github/workflows/aura-build.yml
-
 name: Aura — Build, Verify & Ship
 
 on:
@@ -17,75 +16,16 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ── Job 1: Vibe Check (lint + test) ─────────────────────────────────────
+  # ── Job 1: Vibe Check (Parallel) ─────────────────────────────────────────
   vibe-check:
-    name: 🌿 Vibe Check — ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    name: 🌿 Vibe Check
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cache system dependencies
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/aura-build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --fix-broken libunwind-dev
-          sudo apt-get install -y \
-            clang \
-            libclang-dev \
-            llvm-dev \
-            dbus-x11 \
-            gnome-keyring \
-            libglib2.0-dev \
-            libssl-dev \
-            libdbus-1-dev \
-            libvulkan-dev \
-            libx11-dev \
-            libx11-xcb-dev \
-            libxcb-render0-dev \
-            libxcb-shape0-dev \
-            libxcb-xfixes0-dev \
-            libxmu-dev \
-            libgles2-mesa-dev \
-            libfontconfig1-dev \
-            libfreetype6-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev \
-            libharfbuzz-dev \
-            libatk1.0-dev \
-            libpango1.0-dev \
-            libgtk-3-dev \
-            libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev \
-            libwebkit2gtk-4.1-dev
-      - name: Set Linux Environment Variables
-        if: runner.os == 'Linux'
-        run: |
-          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
-          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
-      - name: Set Windows Environment Variables
-        if: runner.os == 'Windows'
-        run: |
-          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
-        shell: bash
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+      - uses: Swatinem/rust-cache@v2
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy (deny warnings)
@@ -93,10 +33,9 @@ jobs:
       - name: Run tests
         run: cargo test --workspace
 
-  # ── Job 2: Build Engine (cdylib for all platforms) ───────────────────────
-  build-engine:
-    name: 🔧 Build Engine — ${{ matrix.platform }}
-    needs: vibe-check
+  # ── Job 2: Unified Build & Bundle ───────────────────────────────────────
+  build:
+    name: 📦 Build — ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
@@ -116,157 +55,49 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Cache system dependencies
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/aura-build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
+
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --fix-broken libunwind-dev
           sudo apt-get install -y \
-            clang \
-            libclang-dev \
-            llvm-dev \
-            libglib2.0-dev \
-            libssl-dev \
-            libdbus-1-dev \
-            libvulkan-dev \
-            libx11-dev \
-            libx11-xcb-dev \
-            libxcb-render0-dev \
-            libxcb-shape0-dev \
-            libxcb-xfixes0-dev \
-            libxmu-dev \
-            libgles2-mesa-dev \
-            libfontconfig1-dev \
-            libfreetype6-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev \
-            libharfbuzz-dev \
-            libatk1.0-dev \
-            libpango1.0-dev \
-            libgtk-3-dev \
-            libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev \
-            libwebkit2gtk-4.1-dev
-      - name: Set Linux Environment Variables
-        if: runner.os == 'Linux'
-        run: |
-          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
-          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
-      - name: Set Windows Environment Variables
-        if: runner.os == 'Windows'
-        run: |
-          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
-        shell: bash
+            libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev libdbus-1-dev libssl-dev libx11-dev \
+            libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libfontconfig1-dev libfreetype6-dev libharfbuzz-dev \
+            libatk1.0-dev libpango1.0-dev
+
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}
+
       - uses: Swatinem/rust-cache@v2
         with:
-          key: engine-${{ matrix.platform }}
-      - name: Build engine cdylib
-        run: cargo build --release -p aura-engine --target ${{ matrix.target }}
-        shell: bash
-      - uses: actions/upload-artifact@v4
-        with:
-          name: engine-${{ matrix.platform }}
-          path: target/${{ matrix.target     }}/release/${{ matrix.artifact }}
+          key: build-${{ matrix.platform }}-${{ hashFiles('**/Cargo.toml') }}
 
-  # ── Job 3: Build App (full bundle) ──────────────────────────────────────
-  build-app:
-    name: 📦 Bundle App — ${{ matrix.platform }}
-    needs: build-engine
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            os: windows-latest
-            bundle: nsis
-          - platform: linux
-            os: ubuntu-22.04
-            bundle: deb
-          - platform: macos
-            os: macos-14
-            bundle: dmg
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Cache system dependencies
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/aura-build.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --fix-broken libunwind-dev
-          sudo apt-get install -y \
-            clang \
-            libclang-dev \
-            llvm-dev \
-            libglib2.0-dev \
-            libssl-dev \
-            libdbus-1-dev \
-            libvulkan-dev \
-            libx11-dev \
-            libx11-xcb-dev \
-            libxcb-render0-dev \
-            libxcb-shape0-dev \
-            libxcb-xfixes0-dev \
-            libxmu-dev \
-            libgles2-mesa-dev \
-            libfontconfig1-dev \
-            libfreetype6-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev \
-            libharfbuzz-dev \
-            libatk1.0-dev \
-            libpango1.0-dev \
-            libgtk-3-dev \
-            libjavascriptcoregtk-4.1-dev \
-            libsoup-3.0-dev \
-            libwebkit2gtk-4.1-dev
-      - name: Set Linux Environment Variables
-        if: runner.os == 'Linux'
-        run: |
-          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
-          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
-      - name: Set Windows Environment Variables
-        if: runner.os == 'Windows'
-        run: |
-          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
+      - name: Build Engine
+        run: cargo build --release -p aura-engine --target ${{ matrix.target }}
+
+      - name: Prepare Resources
         shell: bash
-      - uses: dtolnay/rust-toolchain@stable
+        run: |
+          mkdir -p aura-app/resources
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact }} aura-app/resources/
+
+      - name: Build App Bundle
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+          projectPath: aura-app
+          tagName: aura-v__VERSION__
+          releaseName: "Aura v__VERSION__"
+          releaseBody: "Automated release of Aura Browser"
+          releaseDraft: true
+          prerelease: false
+
+      - name: Upload Engine Artifact (Manual)
+        uses: actions/upload-artifact@v4
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
-      - name: Download engine artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: engine-${{ matrix.platform }}
-          path: aura-app/engines/
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
-      - name: Build Tauri bundle
-        run: cargo tauri build --bundles ${{ matrix.bundle }}
-        working-directory: aura-app
-      - uses: actions/upload-artifact@v4
-        with:
-          name: aura-${{ matrix.platform }}-${{ matrix.bundle }}
-          path: target/release/bundle/
+          name: aura-engine-${{ matrix.platform }}
+          path: aura-app/resources/${{ matrix.artifact }}

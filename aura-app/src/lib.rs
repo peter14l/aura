@@ -35,7 +35,17 @@ pub struct AppState {
 
 #[tauri::command]
 async fn navigate(url: String, state: State<'_, AppState>) -> Result<(), AuraError> {
-    let parsed = Url::parse(&url).map_err(|_| AuraError::InvalidUrl(url.clone()))?;
+    let parsed = if url.contains(' ') || (!url.contains('.') && !url.starts_with("localhost")) {
+        Url::parse_with_params("https://duckduckgo.com/", &[("q", &url)])
+            .map_err(|_| AuraError::InvalidUrl(url.clone()))?
+    } else {
+        let url_with_scheme = if !url.contains("://") {
+            format!("https://{}", url)
+        } else {
+            url.clone()
+        };
+        Url::parse(&url_with_scheme).map_err(|_| AuraError::InvalidUrl(url.clone()))?
+    };
     let source_url = parsed.clone();
     let filtered = aura_net::intercept(&parsed, &source_url, "main_frame").await;
 
@@ -214,29 +224,20 @@ pub fn run() {
     let ai = Arc::new(tokio::sync::Mutex::new(None));
 
     let silo_dir = dirs::home_dir()
-        .expect("Could not find home directory")
-        .join(".aura")
-        .join("silos");
-    let silo_manager =
-        Arc::new(aura_silo::SiloManager::init(silo_dir).expect("Failed to initialize Silo"));
+        .map(|p| p.join(".aura").join("silos"))
+        .unwrap_or_else(|| {
+            let fallback = std::env::current_dir().unwrap_or_default().join("silos");
+            tracing::warn!("Could not find home directory, using fallback: {:?}", fallback);
+            fallback
+        });
 
-    // Load initial engine
-    let exe_dir = std::env::current_exe()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_path_buf();
-    let engine_path = if cfg!(target_os = "windows") {
-        exe_dir.join("aura_engine.dll")
-    } else if cfg!(target_os = "macos") {
-        exe_dir.join("libaura_engine.dylib")
-    } else {
-        exe_dir.join("libaura_engine.so")
-    };
-
-    if engine_path.exists() {
-        let _ = tauri::async_runtime::block_on(hot_swap.load_initial_engine(engine_path));
+    if let Err(e) = std::fs::create_dir_all(&silo_dir) {
+        tracing::error!("Failed to create silo directory {:?}: {}", silo_dir, e);
     }
+
+    let silo_manager = Arc::new(
+        aura_silo::SiloManager::init(silo_dir.clone()).expect("Failed to initialize Silo"),
+    );
 
     let state = AppState {
         hot_swap: hot_swap.clone(),
@@ -255,6 +256,49 @@ pub fn run() {
             lotus_clicked,
             add_tab
         ])
+        .setup(|app| {
+            // Load engine from resources or exe dir
+            let hot_swap = app.state::<AppState>().hot_swap.clone();
+            let handle = app.handle().clone();
+            
+            let resource_dir = app.path().resource_dir().unwrap_or_else(|_| PathBuf::new());
+            let exe_dir = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+            let engine_filename = if cfg!(target_os = "windows") {
+                "aura_engine.dll"
+            } else if cfg!(target_os = "macos") {
+                "libaura_engine.dylib"
+            } else {
+                "libaura_engine.so"
+            };
+
+            let paths_to_check = vec![
+                exe_dir.join(engine_filename),
+                resource_dir.join("resources").join(engine_filename),
+                resource_dir.join(engine_filename),
+            ];
+
+            for path in paths_to_check {
+                if path.exists() {
+                    tracing::info!("Attempting to load engine from {:?}", path);
+                    let h = hot_swap.clone();
+                    let p = path.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = h.load_initial_engine(p.clone()).await {
+                            tracing::error!("Failed to load engine from {:?}: {}", p, e);
+                        } else {
+                            tracing::info!("Engine loaded successfully from {:?}", p);
+                        }
+                    });
+                    break;
+                }
+            }
+
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("Aura failed to build");
 
@@ -290,15 +334,24 @@ pub fn run() {
     });
 
     // Gestural Edge Detection
-    let win = app
-        .get_webview_window("main")
-        .expect("Main window not found");
+    let win = app.get_window("main").unwrap_or_else(|| {
+        tracing::info!("Main window 'main' not found in config, creating programmatically");
+        tauri::window::WindowBuilder::new(&app, "main")
+            .title("Aura")
+            .inner_size(1200.0, 800.0)
+            .decorations(false)
+            .transparent(true)
+            .build()
+            .expect("Failed to create main window")
+    });
     win.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(_) = event {
             // Example of a valid variant
         }
     });
 
+    ui.set_command_bar_visible(true);
+    ui.set_status_bar_visible(true);
     ui.show().expect("Failed to show Slint UI");
 
     // Start the render loop for Servo

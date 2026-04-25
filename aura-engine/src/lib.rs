@@ -39,10 +39,13 @@ impl RenderingContext for AuraRenderingContext {
         Ok(())
     }
     fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl> {
-        todo!("Implement gleam_gl_api")
+        gleam::gl::GlFns::load_with(|_| std::ptr::null())
     }
     fn glow_gl_api(&self) -> std::sync::Arc<glow::Context> {
-        todo!("Implement glow_gl_api")
+        #[allow(clippy::missing_safety_doc)]
+        unsafe {
+            std::sync::Arc::new(glow::Context::from_loader_function(|_| std::ptr::null()))
+        }
     }
 }
 
