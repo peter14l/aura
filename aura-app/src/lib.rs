@@ -338,16 +338,7 @@ pub fn run() {
     });
 
     // Gestural Edge Detection
-    let win = app.get_webview_window("main").unwrap_or_else(|| {
-        tracing::info!("Main window 'main' not found in config, creating programmatically");
-        WebviewWindowBuilder::new(&app, "main", tauri::WebviewUrl::App("index.html".into()))
-            .title("Aura")
-            .inner_size(1200.0, 800.0)
-            .decorations(false)
-            .transparent(true)
-            .build()
-            .expect("Failed to create main window")
-    });
+    let win = app.get_webview_window("main").expect("Main window not found in config");
     win.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(_) = event {
             // Example of a valid variant
