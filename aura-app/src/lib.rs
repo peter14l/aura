@@ -419,8 +419,9 @@ pub fn run() {
     let handle = app.handle().clone();
 
     // Slint callbacks
+    let h_ui = handle.clone();
     let _ = ui_weak.upgrade_in_event_loop(move |ui| {
-        let h_nav = handle.clone();
+        let h_nav = h_ui.clone();
         ui.on_navigate(move |url| {
             let h = h_nav.clone();
             let url = url.to_string();
@@ -430,7 +431,7 @@ pub fn run() {
             });
         });
 
-        let h_lotus = handle.clone();
+        let h_lotus = h_ui.clone();
         ui.on_lotus_clicked(move || {
             let h = h_lotus.clone();
             tauri::async_runtime::spawn(async move {
@@ -439,7 +440,7 @@ pub fn run() {
             });
         });
 
-        let h_mouse = handle.clone();
+        let h_mouse = h_ui.clone();
         ui.on_mouse_event(move |x, y, event_type| {
             let h = h_mouse.clone();
             tauri::async_runtime::spawn(async move {
