@@ -2,6 +2,9 @@
   "productName": "Aura",
   "version": "0.1.0",
   "identifier": "dev.aura-browser.app",
+  "build": {
+    "frontendDist": "public"
+  },
   "app": {
     "macOSPrivateApi": true,
     "windows": [{
