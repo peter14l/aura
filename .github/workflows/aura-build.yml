@@ -68,6 +68,8 @@ jobs:
   # ── Job 2: Unified Build & Bundle ───────────────────────────────────────
   build:
     name: 📦 Build — ${{ matrix.platform }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
