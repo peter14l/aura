@@ -158,3 +158,14 @@ jobs:
         with:
           name: aura-engine-${{ matrix.platform }}
           path: aura-app/resources/${{ matrix.artifact }}
+
+      - name: Upload App Artifact (Manual)
+        uses: actions/upload-artifact@v4
+        with:
+          name: aura-installer-${{ matrix.platform }}
+          path: |
+            aura-app/target/release/bundle/msi/*.msi
+            aura-app/target/release/bundle/nsis/*.exe
+            aura-app/target/release/bundle/dmg/*.dmg
+            aura-app/target/release/bundle/deb/*.deb
+            aura-app/target/release/bundle/appimage/*.AppImage
