@@ -338,7 +338,9 @@ pub fn run() {
     });
 
     // Gestural Edge Detection
-    let win = app.get_webview_window("main").expect("Main window not found in config");
+    let win = app
+        .get_webview_window("main")
+        .expect("Main window not found in config");
     win.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(_) = event {
             // Example of a valid variant
