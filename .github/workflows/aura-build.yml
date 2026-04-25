@@ -30,6 +30,7 @@ jobs:
             pkg-config \
             clang \
             libclang-dev \
+            llvm-dev \
             libglib2.0-dev \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
@@ -46,6 +47,12 @@ jobs:
             libharfbuzz-dev \
             libatk1.0-dev \
             libpango1.0-dev
+
+      - name: Set Environment Variables (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -89,6 +96,7 @@ jobs:
             pkg-config \
             clang \
             libclang-dev \
+            llvm-dev \
             libglib2.0-dev \
             libgtk-3-dev \
             libwebkit2gtk-4.1-dev \
@@ -105,6 +113,12 @@ jobs:
             libharfbuzz-dev \
             libatk1.0-dev \
             libpango1.0-dev
+
+      - name: Set Environment Variables (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "LIBCLANG_PATH=$(llvm-config --libdir)" >> $GITHUB_ENV
+          echo "BINDGEN_EXTRA_CLANG_ARGS=-D__x86_64__" >> $GITHUB_ENV
 
       - uses: dtolnay/rust-toolchain@stable
         with:
