@@ -225,8 +225,8 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
         }
         2 => {
             // X11
-            let mut w = XlibWindowHandle::new(config.window_handle as u64);
-            let mut d = XlibDisplayHandle::new(std::ptr::NonNull::new(config.display_handle), 0);
+            let w = XlibWindowHandle::new(config.window_handle as u32 as u64);
+            let d = XlibDisplayHandle::new(std::ptr::NonNull::new(config.display_handle), 0);
             (RawWindowHandle::Xlib(w), RawDisplayHandle::Xlib(d))
         }
         3 => {

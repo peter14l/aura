@@ -4,7 +4,7 @@ pub mod hot_swap;
 
 use aura_ui::{MainUI, TabNode};
 use hot_swap::{HotSwapManager, SwapError};
-use raw_window_handle::HasWindowHandle;
+use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 use serde::Serialize;
 use slint::{ComponentHandle, Model, SharedString};
 use std::path::PathBuf;
@@ -318,7 +318,7 @@ pub fn run() {
                             raw_window_handle::RawDisplayHandle::Xlib(d),
                         ) => (
                             w.window as *mut std::ffi::c_void,
-                            d.display as *mut std::ffi::c_void,
+                            d.display.map(|p| p.as_ptr()).unwrap_or(std::ptr::null_mut()) as *mut std::ffi::c_void,
                             2,
                         ),
                         (
