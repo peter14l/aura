@@ -355,7 +355,7 @@ pub fn run() {
                     let d_ptr_send = hot_swap::SendableSurface(d_ptr);
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = h
-                            .load_initial_engine(p.clone(), w_ptr_send.0, d_ptr_send.0, plat)
+                            .load_initial_engine(p.clone(), w_ptr_send, d_ptr_send, plat)
                             .await
                         {
                             tracing::error!("Failed to load engine from {:?}: {}", p, e);

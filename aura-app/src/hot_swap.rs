@@ -136,13 +136,13 @@ impl HotSwapManager {
     pub async fn load_initial_engine(
         &self,
         path: PathBuf,
-        w_ptr: *mut c_void,
-        d_ptr: *mut c_void,
+        w_ptr: SendableSurface,
+        d_ptr: SendableSurface,
         platform: u32,
     ) -> Result<(), SwapError> {
         {
             let mut h_guard = self.handles.lock().await;
-            *h_guard = Some((SendableSurface(w_ptr), SendableSurface(d_ptr), platform));
+            *h_guard = Some((SendableSurface(w_ptr.0), SendableSurface(d_ptr.0), platform));
         }
         let engine = self.load_engine(path, w_ptr, d_ptr, platform).await?;
         let mut guard = self.current.lock().await;
@@ -153,8 +153,8 @@ impl HotSwapManager {
     async fn load_engine(
         &self,
         path: PathBuf,
-        w_ptr: *mut c_void,
-        d_ptr: *mut c_void,
+        w_ptr: SendableSurface,
+        d_ptr: SendableSurface,
         platform: u32,
     ) -> Result<LoadedEngine, SwapError> {
         unsafe {
@@ -165,8 +165,8 @@ impl HotSwapManager {
             let config = EngineConfig {
                 user_agent: std::ptr::null(),
                 placeholder: true,
-                window_handle: w_ptr,
-                display_handle: d_ptr,
+                window_handle: w_ptr.0,
+                display_handle: d_ptr.0,
                 platform,
             };
             let ctx = cold_init(&config);
@@ -222,7 +222,7 @@ impl HotSwapManager {
             let (w, d, p) = h_guard.as_ref().ok_or(SwapError::InitFailed)?;
             (w.0, d.0, *p)
         };
-        let new_engine = self.load_engine(new_dylib, w, d, p).await?;
+        let new_engine = self.load_engine(new_dylib, SendableSurface(w), SendableSurface(d), p).await?;
 
         // Phase B: Serialise state
         let mut guard = self.current.lock().await;
