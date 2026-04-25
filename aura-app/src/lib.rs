@@ -9,7 +9,7 @@ use serde::Serialize;
 use slint::{ComponentHandle, Model, SharedString};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{Manager, State, WebviewWindowBuilder};
+use tauri::{Manager, State};
 use thiserror::Error;
 use url::Url;
 
