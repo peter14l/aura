@@ -263,9 +263,9 @@ pub fn run() {
         .setup(|app| {
             // Load engine from resources or exe dir
             let hot_swap = app.state::<AppState>().hot_swap.clone();
-            let handle = app.handle().clone();
 
             let resource_dir = app.path().resource_dir().unwrap_or_else(|_| PathBuf::new());
+
             let exe_dir = std::env::current_exe()
                 .ok()
                 .and_then(|p| p.parent().map(|p| p.to_path_buf()))
