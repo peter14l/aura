@@ -301,6 +301,41 @@ pub fn run() {
                 }
             }
 
+            if let Some(win) = app.get_webview_window("main") {
+                win.on_window_event(move |event| {
+                    if let tauri::WindowEvent::Focused(_) = event {
+                        // Example of a valid variant
+                    }
+                });
+
+                let h_swap_render = hot_swap.clone();
+                let win_render = win.clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        let surface = if let Ok(handle) = win_render.window_handle() {
+                            let raw = handle.as_raw();
+                            match raw {
+                                raw_window_handle::RawWindowHandle::Win32(h) => {
+                                    h.hwnd.get() as *mut std::ffi::c_void
+                                }
+                                _ => std::ptr::null_mut(),
+                            }
+                        } else {
+                            std::ptr::null_mut()
+                        };
+
+                        if !surface.is_null() {
+                            let _ = h_swap_render
+                                .paint(hot_swap::SendableSurface(surface))
+                                .await;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
+                    }
+                });
+            } else {
+                tracing::error!("Main window not found in config");
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -337,45 +372,9 @@ pub fn run() {
         });
     });
 
-    // Gestural Edge Detection
-    let win = app
-        .get_webview_window("main")
-        .expect("Main window not found in config");
-    win.on_window_event(move |event| {
-        if let tauri::WindowEvent::Focused(_) = event {
-            // Example of a valid variant
-        }
-    });
-
     ui.set_command_bar_visible(true);
     ui.set_status_bar_visible(true);
     ui.show().expect("Failed to show Slint UI");
-
-    // Start the render loop for Servo
-    let h_swap_render = hot_swap.clone();
-    let win_render = win.clone();
-    tauri::async_runtime::spawn(async move {
-        loop {
-            let surface = if let Ok(handle) = win_render.window_handle() {
-                let raw = handle.as_raw();
-                match raw {
-                    raw_window_handle::RawWindowHandle::Win32(h) => {
-                        h.hwnd.get() as *mut std::ffi::c_void
-                    }
-                    _ => std::ptr::null_mut(),
-                }
-            } else {
-                std::ptr::null_mut()
-            };
-
-            if !surface.is_null() {
-                let _ = h_swap_render
-                    .paint(hot_swap::SendableSurface(surface))
-                    .await;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
-        }
-    });
 
     app.run(|_app_handle, _event| {});
 }
