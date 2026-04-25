@@ -227,7 +227,10 @@ pub fn run() {
         .map(|p| p.join(".aura").join("silos"))
         .unwrap_or_else(|| {
             let fallback = std::env::current_dir().unwrap_or_default().join("silos");
-            tracing::warn!("Could not find home directory, using fallback: {:?}", fallback);
+            tracing::warn!(
+                "Could not find home directory, using fallback: {:?}",
+                fallback
+            );
             fallback
         });
 
@@ -260,7 +263,7 @@ pub fn run() {
             // Load engine from resources or exe dir
             let hot_swap = app.state::<AppState>().hot_swap.clone();
             let handle = app.handle().clone();
-            
+
             let resource_dir = app.path().resource_dir().unwrap_or_else(|_| PathBuf::new());
             let exe_dir = std::env::current_exe()
                 .ok()
