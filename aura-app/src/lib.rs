@@ -299,7 +299,7 @@ pub fn run() {
                     match (wh.as_raw(), dh.as_raw()) {
                         (
                             raw_window_handle::RawWindowHandle::Win32(w),
-                            raw_window_handle::RawDisplayHandle::Windows(d),
+                            raw_window_handle::RawDisplayHandle::Windows(_d),
                         ) => (
                             w.hwnd.get() as *mut std::ffi::c_void,
                             std::ptr::null_mut(),
@@ -307,7 +307,7 @@ pub fn run() {
                         ),
                         (
                             raw_window_handle::RawWindowHandle::AppKit(w),
-                            raw_window_handle::RawDisplayHandle::AppKit(d),
+                            raw_window_handle::RawDisplayHandle::AppKit(_d),
                         ) => (
                             w.ns_view.as_ptr() as *mut std::ffi::c_void,
                             std::ptr::null_mut(),
@@ -315,10 +315,10 @@ pub fn run() {
                         ),
                         (
                             raw_window_handle::RawWindowHandle::Xlib(w),
-                            raw_window_handle::RawDisplayHandle::Xlib(d),
+                            raw_window_handle::RawDisplayHandle::Xlib(_d),
                         ) => (
                             w.window as *mut std::ffi::c_void,
-                            d.display
+                            _d.display
                                 .map(|p| p.as_ptr())
                                 .unwrap_or(std::ptr::null_mut())
                                 as *mut std::ffi::c_void,
@@ -326,10 +326,10 @@ pub fn run() {
                         ),
                         (
                             raw_window_handle::RawWindowHandle::Wayland(w),
-                            raw_window_handle::RawDisplayHandle::Wayland(d),
+                            raw_window_handle::RawDisplayHandle::Wayland(_d),
                         ) => (
                             w.surface.as_ptr() as *mut std::ffi::c_void,
-                            d.display.as_ptr() as *mut std::ffi::c_void,
+                            _d.display.as_ptr() as *mut std::ffi::c_void,
                             3,
                         ),
                         _ => (std::ptr::null_mut(), std::ptr::null_mut(), 0),
@@ -346,8 +346,13 @@ pub fn run() {
                     tracing::info!("Attempting to load engine from {:?}", path);
                     let h = hot_swap.clone();
                     let p = path.clone();
+                    let w_ptr_send = hot_swap::SendableSurface(w_ptr);
+                    let d_ptr_send = hot_swap::SendableSurface(d_ptr);
                     tauri::async_runtime::spawn(async move {
-                        if let Err(e) = h.load_initial_engine(p.clone(), w_ptr, d_ptr, plat).await {
+                        if let Err(e) = h
+                            .load_initial_engine(p.clone(), w_ptr_send.0, d_ptr_send.0, plat)
+                            .await
+                        {
                             tracing::error!("Failed to load engine from {:?}: {}", p, e);
                         } else {
                             tracing::info!("Engine loaded successfully from {:?}", p);

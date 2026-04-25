@@ -48,7 +48,7 @@ pub struct EngineSnapshot {
 }
 
 struct GlContext {
-    display: Display,
+    _display: Display,
     context: PossiblyCurrentContext,
     surface: Surface<WindowSurface>,
     glow: std::sync::Arc<glow::Context>,
@@ -125,7 +125,7 @@ impl GlContext {
         };
 
         Self {
-            display,
+            _display: display,
             context: gl_context,
             surface: gl_surface,
             glow: std::sync::Arc::new(glow_context),
@@ -165,13 +165,12 @@ impl RenderingContext for AuraRenderingContext {
     fn resize(&self, new_size: dpi::PhysicalSize<u32>) {
         *self.size.lock().unwrap() = new_size;
         let mut guard = self.gl_context.lock().unwrap();
-        if let Some(ctx) = guard.as_mut() {
-            if let (Some(w), Some(h)) = (
-                std::num::NonZeroU32::new(new_size.width),
-                std::num::NonZeroU32::new(new_size.height),
-            ) {
-                ctx.resize(w, h);
-            }
+        if let (Some(ctx), Some(w), Some(h)) = (
+            guard.as_mut(),
+            std::num::NonZeroU32::new(new_size.width),
+            std::num::NonZeroU32::new(new_size.height),
+        ) {
+            ctx.resize(w, h);
         }
     }
     fn present(&self) {
@@ -255,6 +254,7 @@ impl EngineContext {
             Some(GlContext::new(wh, dh))
         };
 
+        #[allow(clippy::arc_with_non_send_sync)]
         let rendering_context = AuraRenderingContext {
             gl_context: Arc::new(Mutex::new(gl_context)),
             size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
