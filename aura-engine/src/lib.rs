@@ -150,15 +150,15 @@ impl GlContext {
     }
 
     pub fn make_current(&self) {
-        self.context.make_current(&self.surface).unwrap();
+        let _ = self.context.make_current(&self.surface);
     }
 
     pub fn present(&self) {
-        self.surface.swap_buffers(&self.context).unwrap();
+        let _ = self.surface.swap_buffers(&self.context);
     }
 
     pub fn resize(&mut self, width: std::num::NonZeroU32, height: std::num::NonZeroU32) {
-        self.surface.resize(&self.context, width, height);
+        let _ = self.surface.resize(&self.context, width, height);
     }
 }
 
