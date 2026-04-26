@@ -226,11 +226,14 @@ async fn silo_status(domain: String, state: State<'_, AppState>) -> Result<bool,
 pub fn run() {
     let (tx, rx) = std::sync::mpsc::channel();
 
+    // Create UI - we'll render it into Tauri's window instead of creating a separate one
     std::thread::spawn(move || {
         let ui = aura_ui::create_ui();
         tx.send(ui.as_weak()).unwrap();
-
-        ui.show().expect("Failed to show Slint UI");
+        
+        // NOTE: We intentionally DON'T call ui.show() here because that creates
+        // a separate window. Instead, Slint components should be rendered by Tauri.
+        // The Tauri window setup will handle embedding our UI components.
         slint::run_event_loop().expect("Slint event loop failed");
     });
 

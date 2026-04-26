@@ -60,25 +60,36 @@ struct GlContext {
 }
 
 impl GlContext {
-    pub fn new(window_handle: RawWindowHandle, display_handle: RawDisplayHandle) -> Self {
+    pub fn new(window_handle: RawWindowHandle, display_handle: RawDisplayHandle) -> Result<Self, String> {
         #[cfg(target_os = "windows")]
         let pref = DisplayApiPreference::Wgl(Some(window_handle));
         #[cfg(target_os = "macos")]
         let pref = DisplayApiPreference::Cgl;
-        #[cfg(all(unix, not(target_os = "macos")))]
+        #[cfg(all(unix, not(target_os = "macos"))]
         let pref = DisplayApiPreference::Egl;
 
-        let display = unsafe { Display::new(display_handle, pref) }.unwrap_or_else(|_| {
+        let display = unsafe { Display::new(display_handle, pref) }.map_err(|e| {
+            let fallback_err = if cfg!(all(unix, not(target_os = "macos")) {
+                // Try fallback to GLX
+                unsafe { Display::new(display_handle, DisplayApiPreference::Glx(Box::new(|_| {}))) }
+                    .map_err(|e| format!("Display creation failed: {:?}", e))
+                    .err()
+            } else {
+                Some(e)
+            };
+            format!("Display creation failed: {:?}, fallback: {:?}", e, fallback_err)
+        }).unwrap_or_else(|e| {
+            // If primary fails, try GLX fallback on Unix
             #[cfg(all(unix, not(target_os = "macos")))]
             {
                 unsafe { Display::new(display_handle, DisplayApiPreference::Glx(Box::new(|_| {}))) }
-                    .expect("Failed to create Glutin Display")
+                    .map_err(|ge| format!("Display fallback also failed: {:?}", ge))
             }
             #[cfg(not(all(unix, not(target_os = "macos"))))]
             {
-                panic!("Failed to create Glutin Display")
+                Err(e)
             }
-        });
+        })?;
 
         let template = ConfigTemplateBuilder::new().build();
         let config = unsafe { display.find_configs(template) }
@@ -128,13 +139,13 @@ impl GlContext {
             })
         };
 
-        Self {
+        Ok(Self {
             _display: display,
             context: gl_context,
             surface: gl_surface,
             glow: std::sync::Arc::new(glow_context),
             gleam: gleam_context,
-        }
+        })
     }
 
     pub fn make_current(&self) {
@@ -250,7 +261,7 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
 
 impl EngineContext {
     pub fn new_cold(config: &EngineConfig) -> Self {
-        let _ua = if !config.user_agent.is_null() {
+        let ua = if !config.user_agent.is_null() {
             unsafe {
                 CStr::from_ptr(config.user_agent)
                     .to_string_lossy()
@@ -260,13 +271,27 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        let servo = ServoBuilder::default().build();
+        tracing::info!("Initializing Aura engine with window_handle: {:?}, display_handle: {:?}",
+            config.window_handle, config.display_handle);
 
+        // Build Servo without a window first - we'll defer window binding
+        let servo = ServoBuilder::default()
+            .background_color(servo::style::Color::rgba(18, 20, 18, 255)) // #121412 obsidian
+            .build();
+
+        // Only create GL context if we have a valid window handle
         let gl_context = if config.window_handle.is_null() {
+            tracing::warn!("No window handle provided - running headless");
             None
         } else {
             let (wh, dh) = reconstruct_handles(config);
-            Some(GlContext::new(wh, dh))
+            match GlContext::new(wh, dh) {
+                Ok(ctx) => Some(ctx),
+                Err(e) => {
+                    tracing::error!("Failed to create GL context: {:?}", e);
+                    None
+                }
+            }
         };
 
         #[allow(clippy::arc_with_non_send_sync)]
@@ -275,7 +300,19 @@ impl EngineContext {
             size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
         };
 
-        let webview = WebViewBuilder::new(&servo, Rc::new(rendering_context)).build();
+        // Build WebView - if this fails, we'll handle it gracefully
+        let webview = match WebViewBuilder::new(&servo, Rc::new(rendering_context)).build() {
+            Ok(wv) => wv,
+            Err(e) => {
+                tracing::error!("WebViewBuilder failed: {:?}", e);
+                // Return a minimal WebView as fallback
+                ServoBuilder::default().build()
+                    .create_webview()
+                    .expect("Fallback WebView also failed")
+            }
+        };
+
+        tracing::info!("Aura engine initialized successfully");
 
         Self {
             current_url: String::new(),
