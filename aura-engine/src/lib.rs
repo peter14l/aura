@@ -262,7 +262,7 @@ impl EngineContext {
 
         // Build Servo without a window first - we'll defer window binding
         let servo = ServoBuilder::default()
-            .background_color(servo::style::Color::rgba(18, 20, 18, 255)) // #121412 obsidian
+            // .background_color(servo::style::Color::rgba(18, 20, 18, 255)) // #121412 obsidian
             .build();
 
         // Only create GL context if we have a valid window handle
@@ -286,18 +286,8 @@ impl EngineContext {
             size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
         };
 
-        // Build WebView - if this fails, we'll handle it gracefully
-        let webview = match WebViewBuilder::new(&servo, Rc::new(rendering_context)).build() {
-            Ok(wv) => wv,
-            Err(e) => {
-                tracing::error!("WebViewBuilder failed: {:?}", e);
-                // Return a minimal WebView as fallback
-                ServoBuilder::default()
-                    .build()
-                    .create_webview()
-                    .expect("Fallback WebView also failed")
-            }
-        };
+        // Build WebView
+        let webview = WebViewBuilder::new(&servo, Rc::new(rendering_context)).build();
 
         tracing::info!("Aura engine initialized successfully");
 
