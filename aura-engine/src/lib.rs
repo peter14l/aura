@@ -451,8 +451,20 @@ pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *
     if config.is_null() {
         return std::ptr::null_mut();
     }
-    let ctx = Box::new(EngineContext::new_cold(unsafe { &*config }));
+
+    // Perform only essential config cloning here
+    let config = &*config;
+    let ctx = Box::new(EngineContext::new_light(config));
     Box::into_raw(ctx)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aura_engine_init(ctx: *mut EngineContext) -> bool {
+    if ctx.is_null() {
+        return false;
+    }
+    let ctx = &mut *ctx;
+    ctx.heavy_init()
 }
 
 /// Restore the engine from a snapshot.
