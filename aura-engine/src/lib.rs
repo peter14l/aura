@@ -33,6 +33,7 @@ pub struct EngineContext {
     #[allow(dead_code)]
     servo: servo::Servo,
     webview: WebView,
+    rendering_context: Rc<AuraRenderingContext>,
 }
 
 #[repr(C)]
@@ -304,22 +305,25 @@ impl EngineContext {
 
         let connection = Connection::new().expect("Failed to create surfman connection");
 
-        #[allow(clippy::arc_with_non_send_sync)]
-        let rendering_context = AuraRenderingContext {
+        let rendering_context = Rc::new(AuraRenderingContext {
             gl_context: Arc::new(Mutex::new(gl_context)),
             size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
             connection,
-        };
+        });
 
         // Build WebView
-        let webview = WebViewBuilder::new(&servo, Rc::new(rendering_context)).build();
+        let webview = WebViewBuilder::new(&servo, rendering_context.clone()).build();
+
+        // Load default URL
+        webview.load(Url::parse("https://www.google.com").unwrap());
 
         tracing::info!("Aura engine initialized successfully");
 
         Self {
-            current_url: String::new(),
+            current_url: "https://www.google.com".to_string(),
             servo,
             webview,
+            rendering_context,
         }
     }
 
@@ -357,8 +361,14 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
+        // Ensure context is current
+        let _ = self.rendering_context.make_current();
+
         // Trigger paint
         self.webview.paint();
+
+        // Present result
+        self.rendering_context.present();
     }
 
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {

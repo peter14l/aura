@@ -403,6 +403,38 @@ pub fn run() {
                         // Example of a valid variant
                     }
                 });
+
+                let h_swap_render = hot_swap.clone();
+                let win_render = win.clone();
+                tauri::async_runtime::spawn(async move {
+                    loop {
+                        let surface = if let Ok(handle) = win_render.window_handle() {
+                            let raw = handle.as_raw();
+                            match raw {
+                                raw_window_handle::RawWindowHandle::Win32(w) => {
+                                    w.hwnd.get() as *mut std::ffi::c_void
+                                }
+                                raw_window_handle::RawWindowHandle::AppKit(w) => w.ns_view.as_ptr(),
+                                raw_window_handle::RawWindowHandle::Xlib(w) => {
+                                    w.window as *mut std::ffi::c_void
+                                }
+                                raw_window_handle::RawWindowHandle::Wayland(w) => {
+                                    w.surface.as_ptr()
+                                }
+                                _ => std::ptr::null_mut(),
+                            }
+                        } else {
+                            std::ptr::null_mut()
+                        };
+
+                        if !surface.is_null() {
+                            let _ = h_swap_render
+                                .paint(hot_swap::SendableSurface(surface))
+                                .await;
+                        }
+                        tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
+                    }
+                });
             } else {
                 tracing::error!("Main window not found in config");
             }
