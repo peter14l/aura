@@ -1,5 +1,6 @@
 // aura-engine/src/lib.rs
 use euclid::Box2D;
+use glow::HasContext;
 use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers};
 use servo::input_events::{
     InputEvent, KeyboardEvent as ServoKeyboardEvent, MouseButton, MouseButtonAction,
@@ -284,9 +285,7 @@ impl EngineContext {
         );
 
         // Build Servo without a window first - we'll defer window binding
-        let servo = ServoBuilder::default()
-            .background_color(servo::style::Color::rgba(18, 20, 18, 255)) // #121412 obsidian
-            .build();
+        let servo = ServoBuilder::default().build();
 
         // Only create GL context if we have a valid window handle
         let gl_context = if config.window_handle.is_null() {
