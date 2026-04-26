@@ -477,7 +477,7 @@ pub fn run() {
             });
         });
 
-        let h_key = handle.clone();
+        let h_key = h_ui.clone();
         ui.on_key_event(move |key, code, state, modifiers, repeat| {
             let h = h_key.clone();
             let key = key.to_string();
