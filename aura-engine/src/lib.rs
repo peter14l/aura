@@ -314,7 +314,9 @@ impl EngineContext {
         let webview = WebViewBuilder::new(&servo, rendering_context.clone()).build();
 
         // Load default URL
-        webview.load(Url::parse("https://www.google.com").unwrap());
+        let url = Url::parse("https://www.google.com").unwrap();
+        tracing::info!("Engine: Navigating to {}", url);
+        webview.load(url);
 
         tracing::info!("Aura engine initialized successfully");
 
