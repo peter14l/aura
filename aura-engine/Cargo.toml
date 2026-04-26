@@ -23,7 +23,7 @@ surfman = { version = "0.11", features = ["sm-angle"] }
 gleam = "0.15"
 glow = "0.16"
 glutin = "0.32"
-keyboard_types = "0.7"
+keyboard-types = "0.7"
 
 [lib]
 name = "aura_engine"
