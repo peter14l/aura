@@ -29,6 +29,7 @@ pub struct EngineConfig {
     pub placeholder: bool,
     pub window_handle: *mut c_void,
     pub display_handle: *mut c_void,
+    pub instance_handle: *mut c_void,
     pub platform: u32,
 }
 
@@ -116,7 +117,7 @@ impl Drop for LoadedEngine {
 pub struct HotSwapManager {
     current: Arc<Mutex<Option<LoadedEngine>>>,
     // Store handles for shadow instance initialization
-    handles: Mutex<Option<(SendableSurface, SendableSurface, u32)>>,
+    handles: Mutex<Option<(SendableSurface, SendableSurface, SendableSurface, u32)>>,
 }
 
 impl Default for HotSwapManager {
@@ -138,13 +139,21 @@ impl HotSwapManager {
         path: PathBuf,
         w_ptr: SendableSurface,
         d_ptr: SendableSurface,
+        i_ptr: SendableSurface,
         platform: u32,
     ) -> Result<(), SwapError> {
         {
             let mut h_guard = self.handles.lock().await;
-            *h_guard = Some((SendableSurface(w_ptr.0), SendableSurface(d_ptr.0), platform));
+            *h_guard = Some((
+                SendableSurface(w_ptr.0),
+                SendableSurface(d_ptr.0),
+                SendableSurface(i_ptr.0),
+                platform,
+            ));
         }
-        let engine = self.load_engine(path, w_ptr, d_ptr, platform).await?;
+        let engine = self
+            .load_engine(path, w_ptr, d_ptr, i_ptr, platform)
+            .await?;
         let mut guard = self.current.lock().await;
         *guard = Some(engine);
         Ok(())
@@ -155,6 +164,7 @@ impl HotSwapManager {
         path: PathBuf,
         w_ptr: SendableSurface,
         d_ptr: SendableSurface,
+        i_ptr: SendableSurface,
         platform: u32,
     ) -> Result<LoadedEngine, SwapError> {
         unsafe {
@@ -167,6 +177,7 @@ impl HotSwapManager {
                 placeholder: true,
                 window_handle: w_ptr.0,
                 display_handle: d_ptr.0,
+                instance_handle: i_ptr.0,
                 platform,
             };
             let ctx = cold_init(&config);
@@ -217,13 +228,19 @@ impl HotSwapManager {
 
     pub async fn perform_handoff(&self, new_dylib: PathBuf) -> Result<(), SwapError> {
         // Phase A: Load shadow instance
-        let (w, d, p) = {
+        let (w, d, i, p) = {
             let h_guard = self.handles.lock().await;
-            let (w, d, p) = h_guard.as_ref().ok_or(SwapError::InitFailed)?;
-            (w.0, d.0, *p)
+            let (w, d, i, p) = h_guard.as_ref().ok_or(SwapError::InitFailed)?;
+            (w.0, d.0, i.0, *p)
         };
         let new_engine = self
-            .load_engine(new_dylib, SendableSurface(w), SendableSurface(d), p)
+            .load_engine(
+                new_dylib,
+                SendableSurface(w),
+                SendableSurface(d),
+                SendableSurface(i),
+                p,
+            )
             .await?;
 
         // Phase B: Serialise state

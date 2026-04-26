@@ -37,6 +37,7 @@ pub struct EngineConfig {
     pub placeholder: bool,
     pub window_handle: *mut c_void,
     pub display_handle: *mut c_void,
+    pub instance_handle: *mut c_void,
     pub platform: u32,
 }
 
@@ -200,14 +201,16 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
     match config.platform {
         0 => {
             // Windows
-            let w = Win32WindowHandle::new(
+            let mut w = Win32WindowHandle::new(
                 std::num::NonZeroIsize::new(config.window_handle as isize).expect("Invalid HWND"),
             );
+            w.hinstance = std::num::NonZeroIsize::new(config.instance_handle as isize);
             (
                 RawWindowHandle::Win32(w),
                 RawDisplayHandle::Windows(WindowsDisplayHandle::new()),
             )
         }
+
         1 => {
             // macOS
             let w = AppKitWindowHandle::new(std::ptr::NonNull::new(config.window_handle).unwrap());

@@ -299,7 +299,7 @@ pub fn run() {
                 resource_dir.join(engine_filename),
             ];
 
-            let (w_ptr, d_ptr, plat) = if let Some(win) = app.get_webview_window("main") {
+            let (w_ptr, d_ptr, i_ptr, plat) = if let Some(win) = app.get_webview_window("main") {
                 if let (Ok(wh), Ok(dh)) = (win.window_handle(), win.display_handle()) {
                     match (wh.as_raw(), dh.as_raw()) {
                         (
@@ -308,6 +308,9 @@ pub fn run() {
                         ) => (
                             w.hwnd.get() as *mut std::ffi::c_void,
                             std::ptr::null_mut(),
+                            w.hinstance
+                                .map(|h| h.get() as *mut std::ffi::c_void)
+                                .unwrap_or(std::ptr::null_mut()),
                             0,
                         ),
                         (
@@ -315,6 +318,7 @@ pub fn run() {
                             raw_window_handle::RawDisplayHandle::AppKit(_d),
                         ) => (
                             w.ns_view.as_ptr() as *mut std::ffi::c_void,
+                            std::ptr::null_mut(),
                             std::ptr::null_mut(),
                             1,
                         ),
@@ -327,6 +331,7 @@ pub fn run() {
                                 .map(|p| p.as_ptr())
                                 .unwrap_or(std::ptr::null_mut())
                                 as *mut std::ffi::c_void,
+                            std::ptr::null_mut(),
                             2,
                         ),
                         (
@@ -335,15 +340,31 @@ pub fn run() {
                         ) => (
                             w.surface.as_ptr() as *mut std::ffi::c_void,
                             _d.display.as_ptr() as *mut std::ffi::c_void,
+                            std::ptr::null_mut(),
                             3,
                         ),
-                        _ => (std::ptr::null_mut(), std::ptr::null_mut(), 0),
+                        _ => (
+                            std::ptr::null_mut(),
+                            std::ptr::null_mut(),
+                            std::ptr::null_mut(),
+                            0,
+                        ),
                     }
                 } else {
-                    (std::ptr::null_mut(), std::ptr::null_mut(), 0)
+                    (
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        std::ptr::null_mut(),
+                        0,
+                    )
                 }
             } else {
-                (std::ptr::null_mut(), std::ptr::null_mut(), 0)
+                (
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    0,
+                )
             };
 
             for path in paths_to_check {
@@ -353,9 +374,16 @@ pub fn run() {
                     let p = path.clone();
                     let w_ptr_send = hot_swap::SendableSurface(w_ptr);
                     let d_ptr_send = hot_swap::SendableSurface(d_ptr);
+                    let i_ptr_send = hot_swap::SendableSurface(i_ptr);
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = h
-                            .load_initial_engine(p.clone(), w_ptr_send, d_ptr_send, plat)
+                            .load_initial_engine(
+                                p.clone(),
+                                w_ptr_send,
+                                d_ptr_send,
+                                i_ptr_send,
+                                plat,
+                            )
                             .await
                         {
                             tracing::error!("Failed to load engine from {:?}: {}", p, e);
