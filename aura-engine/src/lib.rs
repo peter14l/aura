@@ -1,6 +1,6 @@
 // aura-engine/src/lib.rs
 use euclid::Box2D;
-use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers};
+use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers, NamedKey};
 use servo::input_events::{
     InputEvent, KeyboardEvent as ServoKeyboardEvent, MouseButton, MouseButtonAction,
     MouseButtonEvent, MouseMoveEvent,
@@ -362,7 +362,7 @@ impl EngineContext {
 
         let event = KeyboardEvent {
             state: key_state,
-            key: Key::from_str(key.as_str()).unwrap_or(Key::Unidentified),
+            key: Key::from_str(key.as_str()).unwrap_or_else(|_| Key::Character(key.clone())),
             code: Code::from_str(code.as_str()).unwrap_or(Code::Unidentified),
             location: keyboard_types::Location::Standard,
             modifiers: Modifiers::from_bits(modifiers).unwrap_or(Modifiers::empty()),
