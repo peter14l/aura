@@ -155,7 +155,7 @@ async fn internal_lotus_clicked(state: &AppState) {
 
 #[tauri::command]
 async fn lotus_clicked(state: State<'_, AppState>) -> Result<(), String> {
-    internal_lotus_clicked(&*state).await;
+    internal_lotus_clicked(&state).await;
     Ok(())
 }
 
@@ -317,7 +317,7 @@ pub fn run() {
                             raw_window_handle::RawWindowHandle::AppKit(w),
                             raw_window_handle::RawDisplayHandle::AppKit(_d),
                         ) => (
-                            w.ns_view.as_ptr() as *mut std::ffi::c_void,
+                            w.ns_view.as_ptr(),
                             std::ptr::null_mut(),
                             std::ptr::null_mut(),
                             1,
@@ -329,8 +329,7 @@ pub fn run() {
                             w.window as *mut std::ffi::c_void,
                             _d.display
                                 .map(|p| p.as_ptr())
-                                .unwrap_or(std::ptr::null_mut())
-                                as *mut std::ffi::c_void,
+                                .unwrap_or(std::ptr::null_mut()),
                             std::ptr::null_mut(),
                             2,
                         ),
@@ -338,8 +337,8 @@ pub fn run() {
                             raw_window_handle::RawWindowHandle::Wayland(w),
                             raw_window_handle::RawDisplayHandle::Wayland(_d),
                         ) => (
-                            w.surface.as_ptr() as *mut std::ffi::c_void,
-                            _d.display.as_ptr() as *mut std::ffi::c_void,
+                            w.surface.as_ptr(),
+                            _d.display.as_ptr(),
                             std::ptr::null_mut(),
                             3,
                         ),
@@ -413,13 +412,13 @@ pub fn run() {
                                     w.hwnd.get() as *mut std::ffi::c_void
                                 }
                                 raw_window_handle::RawWindowHandle::AppKit(w) => {
-                                    w.ns_view.as_ptr() as *mut std::ffi::c_void
+                                    w.ns_view.as_ptr()
                                 }
                                 raw_window_handle::RawWindowHandle::Xlib(w) => {
                                     w.window as *mut std::ffi::c_void
                                 }
                                 raw_window_handle::RawWindowHandle::Wayland(w) => {
-                                    w.surface.as_ptr() as *mut std::ffi::c_void
+                                    w.surface.as_ptr()
                                 }
                                 _ => std::ptr::null_mut(),
                             }
@@ -498,18 +497,14 @@ pub fn run() {
     let h_event = handle.clone();
     if let Some(win) = h_event.get_webview_window("main") {
         let h_event_loop = h_event.clone();
-        win.on_window_event(move |event| match event {
-            tauri::WindowEvent::Resized(size) => {
-                let h = h_event_loop.clone();
-                let width = size.width;
-                let height = size.height;
-                tauri::async_runtime::spawn(async move {
-                    let state: State<'_, AppState> = h.state();
-                    let _ = state.hot_swap.resize(width, height).await;
-                });
-            }
-            // Add other event types if needed
-            _ => {}
+        win.on_window_event(move |event| if let tauri::WindowEvent::Resized(size) = event {
+            let h = h_event_loop.clone();
+            let width = size.width;
+            let height = size.height;
+            tauri::async_runtime::spawn(async move {
+                let state: State<'_, AppState> = h.state();
+                let _ = state.hot_swap.resize(width, height).await;
+            });
         });
     }
 

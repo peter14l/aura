@@ -1,6 +1,6 @@
 // aura-engine/src/lib.rs
 use euclid::Box2D;
-use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers, NamedKey};
+use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers};
 use servo::input_events::{
     InputEvent, KeyboardEvent as ServoKeyboardEvent, MouseButton, MouseButtonAction,
     MouseButtonEvent, MouseMoveEvent,
