@@ -284,8 +284,9 @@ impl EngineContext {
             config.display_handle
         );
 
-        // Build Servo without a window first - we'll defer window binding
+        tracing::info!("Engine: Starting ServoBuilder...");
         let servo = ServoBuilder::default().build();
+        tracing::info!("Engine: ServoBuilder done.");
 
         // Only create GL context if we have a valid window handle
         let gl_context = if config.window_handle.is_null() {
@@ -311,7 +312,9 @@ impl EngineContext {
         });
 
         // Build WebView
+        tracing::info!("Engine: Starting WebViewBuilder...");
         let webview = WebViewBuilder::new(&servo, rendering_context.clone()).build();
+        tracing::info!("Engine: WebViewBuilder done.");
 
         // Load default URL
         let url = Url::parse("https://www.google.com").unwrap();
