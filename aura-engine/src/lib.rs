@@ -69,26 +69,7 @@ impl GlContext {
         let pref = DisplayApiPreference::Egl;
 
         let display = unsafe { Display::new(display_handle, pref) }.map_err(|e| {
-            let fallback_err = if cfg!(all(unix, not(target_os = "macos")) {
-                // Try fallback to GLX
-                unsafe { Display::new(display_handle, DisplayApiPreference::Glx(Box::new(|_| {}))) }
-                    .map_err(|e| format!("Display creation failed: {:?}", e))
-                    .err()
-            } else {
-                Some(e)
-            };
-            format!("Display creation failed: {:?}, fallback: {:?}", e, fallback_err)
-        }).unwrap_or_else(|e| {
-            // If primary fails, try GLX fallback on Unix
-            #[cfg(all(unix, not(target_os = "macos")))]
-            {
-                unsafe { Display::new(display_handle, DisplayApiPreference::Glx(Box::new(|_| {}))) }
-                    .map_err(|ge| format!("Display fallback also failed: {:?}", ge))
-            }
-            #[cfg(not(all(unix, not(target_os = "macos"))))]
-            {
-                Err(e)
-            }
+            format!("Display creation failed: {:?}", e)
         })?;
 
         let template = ConfigTemplateBuilder::new().build();
@@ -288,7 +269,7 @@ impl EngineContext {
             match GlContext::new(wh, dh) {
                 Ok(ctx) => Some(ctx),
                 Err(e) => {
-                    tracing::error!("Failed to create GL context: {:?}", e);
+                    tracing::error!("Failed to create GL context: {}", e);
                     None
                 }
             }
