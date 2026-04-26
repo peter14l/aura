@@ -285,7 +285,7 @@ impl EngineContext {
 
         // Build Servo without a window first - we'll defer window binding
         let servo = ServoBuilder::default()
-            // .background_color(servo::style::Color::rgba(18, 20, 18, 255)) // #121412 obsidian
+            .background_color(servo::style::Color::rgba(18, 20, 18, 255)) // #121412 obsidian
             .build();
 
         // Only create GL context if we have a valid window handle

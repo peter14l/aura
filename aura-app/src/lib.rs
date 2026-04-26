@@ -224,9 +224,13 @@ async fn silo_status(domain: String, state: State<'_, AppState>) -> Result<bool,
 }
 
 pub fn run() {
+    // Initialize tracing
+    tracing_subscriber::fmt::init();
+    tracing::info!("Aura starting up...");
+
     let (tx, rx) = std::sync::mpsc::channel();
 
-    // Create UI - we'll render it into Tauri's window instead of creating a separate one
+    // Create UI
     std::thread::spawn(move || {
         let ui = aura_ui::create_ui();
         tx.send(ui.as_weak()).unwrap();
@@ -398,6 +402,13 @@ pub fn run() {
             }
 
             if let Some(win) = app.get_webview_window("main") {
+                // Hide the webview so it doesn't block Servo
+                let _ = win.hide();
+                // Wait, if we hide the window, we might hide the surface.
+                // In Tauri v2, we can just not use the webview or hide it specifically.
+                // Actually, let's just make sure the window is visible but the webview is empty.
+                let _ = win.show();
+
                 win.on_window_event(move |event| {
                     if let tauri::WindowEvent::Focused(_) = event {
                         // Example of a valid variant
