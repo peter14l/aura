@@ -25,6 +25,7 @@ use raw_window_handle::{
 };
 use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
+use surfman::{Connection, Device};
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
@@ -65,20 +66,37 @@ impl GlContext {
         display_handle: RawDisplayHandle,
     ) -> Result<Self, String> {
         #[cfg(target_os = "windows")]
-        let pref = DisplayApiPreference::Wgl(Some(window_handle));
+        let prefs = [
+            DisplayApiPreference::Egl,
+            DisplayApiPreference::Wgl(Some(window_handle)),
+        ];
         #[cfg(target_os = "macos")]
-        let pref = DisplayApiPreference::Cgl;
+        let prefs = [DisplayApiPreference::Cgl];
         #[cfg(all(unix, not(target_os = "macos")))]
-        let pref = DisplayApiPreference::Egl;
+        let prefs = [DisplayApiPreference::Egl];
 
-        let display = unsafe { Display::new(display_handle, pref) }
-            .map_err(|e| format!("Display creation failed: {:?}", e))?;
+        let mut display = None;
+        let mut last_err = String::new();
+
+        for pref in prefs {
+            match unsafe { Display::new(display_handle, pref) } {
+                Ok(d) => {
+                    display = Some(d);
+                    break;
+                }
+                Err(e) => {
+                    last_err = format!("{:?}", e);
+                }
+            }
+        }
+
+        let display = display.ok_or_else(|| format!("Display creation failed: {}", last_err))?;
 
         let template = ConfigTemplateBuilder::new().build();
         let config = unsafe { display.find_configs(template) }
             .unwrap()
             .next()
-            .unwrap();
+            .ok_or("No valid GL configurations found")?;
 
         let context_attributes = ContextAttributesBuilder::new()
             .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
@@ -148,6 +166,8 @@ impl GlContext {
 struct AuraRenderingContext {
     gl_context: Arc<Mutex<Option<GlContext>>>,
     size: Arc<Mutex<dpi::PhysicalSize<u32>>>,
+    connection: Connection,
+    device: Device,
 }
 
 impl RenderingContext for AuraRenderingContext {
@@ -199,6 +219,12 @@ impl RenderingContext for AuraRenderingContext {
             .expect("GL context must be initialized before Servo paint")
             .glow
             .clone()
+    }
+    fn connection(&self) -> Connection {
+        self.connection.clone()
+    }
+    fn device(&self) -> Device {
+        self.device.clone()
     }
 }
 
@@ -280,10 +306,17 @@ impl EngineContext {
             }
         };
 
+        let connection = Connection::new().expect("Failed to create surfman connection");
+        let device = connection
+            .create_device()
+            .expect("Failed to create surfman device");
+
         #[allow(clippy::arc_with_non_send_sync)]
         let rendering_context = AuraRenderingContext {
             gl_context: Arc::new(Mutex::new(gl_context)),
             size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
+            connection,
+            device,
         };
 
         // Build WebView
