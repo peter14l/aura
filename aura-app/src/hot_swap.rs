@@ -88,6 +88,39 @@ impl LoadedEngine {
         Ok(())
     }
 
+    pub fn key_event(
+        &self,
+        key: &str,
+        code: &str,
+        state: i32,
+        modifiers: u32,
+        repeat: bool,
+    ) -> Result<(), SwapError> {
+        unsafe {
+            let key_fn: Symbol<
+                unsafe extern "C" fn(
+                    *mut EngineContext,
+                    *const c_char,
+                    *const c_char,
+                    i32,
+                    u32,
+                    bool,
+                ),
+            > = self.lib.get(b"aura_engine_key_event")?;
+            let c_key = CString::new(key).unwrap();
+            let c_code = CString::new(code).unwrap();
+            key_fn(
+                self.ctx,
+                c_key.as_ptr(),
+                c_code.as_ptr(),
+                state,
+                modifiers,
+                repeat,
+            );
+        }
+        Ok(())
+    }
+
     pub fn resize(&self, width: u32, height: u32) -> Result<(), SwapError> {
         unsafe {
             if let Ok(resize_fn) = self
@@ -212,6 +245,22 @@ impl HotSwapManager {
         let guard = self.current.lock().await;
         if let Some(engine) = guard.as_ref() {
             engine.mouse_event(x, y, event_type)
+        } else {
+            Err(SwapError::InitFailed)
+        }
+    }
+
+    pub async fn key_event(
+        &self,
+        key: &str,
+        code: &str,
+        state: i32,
+        modifiers: u32,
+        repeat: bool,
+    ) -> Result<(), SwapError> {
+        let guard = self.current.lock().await;
+        if let Some(engine) = guard.as_ref() {
+            engine.key_event(key, code, state, modifiers, repeat)
         } else {
             Err(SwapError::InitFailed)
         }

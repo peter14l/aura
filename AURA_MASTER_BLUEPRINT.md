@@ -109,9 +109,10 @@ aura/
 
 ---
 
-## 3. Module Block 01 — The Hollow Shell
+## 3. Module Block 01 — The Hollow Shell [DONE]
 
 **Goal:** Borderless Tauri v2 window that loads and renders URLs via Servo.
+**Status:** Implemented. Engine dynamic loading and basic navigation functional.
 
 ### Cargo.toml — `aura-app`
 
@@ -209,7 +210,9 @@ fn main() {
 
 ---
 
-## 4. Module Block 02 — The Stillness UI + Gestural Fluidity
+## 4. Module Block 02 — The Stillness UI + Gestural Fluidity [DONE]
+
+**Status:** Implemented. Slint UI integrated with Tauri commands. Constellation and Command Bar functional.
 
 ### 4.1 What Is "The Stillness"?
 
@@ -360,7 +363,9 @@ component TabOrb {
 
 ---
 
-## 5. Module Block 03 — Cookie Island (Silo Security)
+## 5. Module Block 03 — Cookie Island (Silo Security) [DONE]
+
+**Status:** Implemented. Per-domain isolation, encryption via AES-256-GCM, and session purging functional.
 
 ### 5.1 Cookie Island Schema (SQLite per TLD)
 
@@ -625,7 +630,9 @@ fn load_or_fetch_lists(urls: &[&str]) -> Vec<String> {
 
 ---
 
-## 6. Module Block 04 — Breathe AI (Local Candle Inference)
+## 6. Module Block 04 — Breathe AI (Local Candle Inference) [DONE]
+
+**Status:** Implemented. Qwen2.5-1.5B loading and HTML summarization logic functional.
 
 ### 6.1 Model Selection & Quantization Matrix
 
@@ -838,7 +845,9 @@ export component BreatheOverlay {
 
 ---
 
-## 7. Module Block 05 — The Infinite Update (Hot-Swappable Engine)
+## 7. Module Block 05 — The Infinite Update (Hot-Swappable Engine) [DONE]
+
+**Status:** Implemented. Rendering Handoff Protocol (RHP) functional with support for window handle passing and zero flicker.
 
 ### 7.1 The Memory-Safe Handoff Problem
 

@@ -1,7 +1,9 @@
 // aura-engine/src/lib.rs
 use euclid::Box2D;
+use keyboard_types::{Code, Key, KeyState, KeyboardEvent, Modifiers};
 use servo::input_events::{
-    InputEvent, MouseButton, MouseButtonAction, MouseButtonEvent, MouseMoveEvent,
+    InputEvent, KeyboardEvent as ServoKeyboardEvent, MouseButton, MouseButtonAction,
+    MouseButtonEvent, MouseMoveEvent,
 };
 use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder};
 use std::ffi::{CStr, CString, c_char, c_void};
@@ -334,6 +336,34 @@ impl EngineContext {
         };
         self.webview.notify_input_event(event);
     }
+
+    pub fn handle_key_event(
+        &mut self,
+        key: String,
+        code: String,
+        state: i32,
+        modifiers: u32,
+        repeat: bool,
+    ) {
+        let key_state = if state == 0 {
+            KeyState::Down
+        } else {
+            KeyState::Up
+        };
+
+        let event = KeyboardEvent {
+            state: key_state,
+            key: Key::from(key.as_str()),
+            code: Code::from(code.as_str()),
+            location: keyboard_types::Location::Standard,
+            modifiers: Modifiers::from_bits(modifiers).unwrap_or(Modifiers::empty()),
+            repeat,
+            is_composing: false,
+        };
+
+        self.webview
+            .notify_input_event(InputEvent::Keyboard(ServoKeyboardEvent { event }));
+    }
 }
 
 /// Get the version of the engine.
@@ -436,6 +466,33 @@ pub unsafe extern "C" fn aura_engine_mouse_event(
     }
     let ctx = unsafe { &mut *ctx };
     ctx.handle_mouse_event(x, y, event_type);
+}
+
+/// Send a key event to the engine.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
+/// `key` and `code` must be valid, null-terminated C strings.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn aura_engine_key_event(
+    ctx: *mut EngineContext,
+    key: *const c_char,
+    code: *const c_char,
+    state: i32,
+    modifiers: u32,
+    repeat: bool,
+) {
+    if ctx.is_null() || key.is_null() || code.is_null() {
+        return;
+    }
+    let ctx = unsafe { &mut *ctx };
+    let key_str = unsafe { CStr::from_ptr(key) }
+        .to_string_lossy()
+        .into_owned();
+    let code_str = unsafe { CStr::from_ptr(code) }
+        .to_string_lossy()
+        .into_owned();
+    ctx.handle_key_event(key_str, code_str, state, modifiers, repeat);
 }
 
 /// Send a resize event to the engine.

@@ -483,9 +483,10 @@ pub fn run() {
 
     let h_event = handle.clone();
     if let Some(win) = h_event.get_webview_window("main") {
-        win.on_window_event(move |event| {
-            if let tauri::WindowEvent::Resized(size) = event {
-                let h = h_event.clone();
+        let h_event_loop = h_event.clone();
+        win.on_window_event(move |event| match event {
+            tauri::WindowEvent::Resized(size) => {
+                let h = h_event_loop.clone();
                 let width = size.width;
                 let height = size.height;
                 tauri::async_runtime::spawn(async move {
@@ -493,6 +494,27 @@ pub fn run() {
                     let _ = state.hot_swap.resize(width, height).await;
                 });
             }
+            tauri::WindowEvent::KeyboardInput { event, .. } => {
+                let h = h_event_loop.clone();
+                let key = format!("{:?}", event.logical_key);
+                let code = format!("{:?}", event.physical_key);
+                let state = match event.state {
+                    tauri::ElementState::Pressed => 0,
+                    tauri::ElementState::Released => 1,
+                    _ => 1,
+                };
+                let repeat = event.repeat;
+
+                tauri::async_runtime::spawn(async move {
+                    let state_app: State<'_, AppState> = h.state();
+                    let _ = state_app
+                        .hot_swap
+                        .key_event(&key, &code, state, 0, repeat)
+                        .await;
+                });
+            }
+            // Add other event types if needed
+            _ => {}
         });
     }
 
