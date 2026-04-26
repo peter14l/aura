@@ -411,9 +411,7 @@ pub fn run() {
                                 raw_window_handle::RawWindowHandle::Win32(w) => {
                                     w.hwnd.get() as *mut std::ffi::c_void
                                 }
-                                raw_window_handle::RawWindowHandle::AppKit(w) => {
-                                    w.ns_view.as_ptr()
-                                }
+                                raw_window_handle::RawWindowHandle::AppKit(w) => w.ns_view.as_ptr(),
                                 raw_window_handle::RawWindowHandle::Xlib(w) => {
                                     w.window as *mut std::ffi::c_void
                                 }
@@ -497,14 +495,16 @@ pub fn run() {
     let h_event = handle.clone();
     if let Some(win) = h_event.get_webview_window("main") {
         let h_event_loop = h_event.clone();
-        win.on_window_event(move |event| if let tauri::WindowEvent::Resized(size) = event {
-            let h = h_event_loop.clone();
-            let width = size.width;
-            let height = size.height;
-            tauri::async_runtime::spawn(async move {
-                let state: State<'_, AppState> = h.state();
-                let _ = state.hot_swap.resize(width, height).await;
-            });
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::Resized(size) = event {
+                let h = h_event_loop.clone();
+                let width = size.width;
+                let height = size.height;
+                tauri::async_runtime::spawn(async move {
+                    let state: State<'_, AppState> = h.state();
+                    let _ = state.hot_swap.resize(width, height).await;
+                });
+            }
         });
     }
 
