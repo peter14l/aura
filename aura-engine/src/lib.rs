@@ -361,6 +361,15 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
+        // Simple color fill test to verify surface access
+        let guard = self.rendering_context.gl_context.lock().unwrap();
+        if let Some(ctx) = guard.as_ref() {
+            unsafe {
+                ctx.glow.clear_color(1.0, 0.0, 1.0, 1.0); // Bright Magenta
+                ctx.glow.clear(glow::COLOR_BUFFER_BIT);
+            }
+        }
+
         // Ensure context is current
         let _ = self.rendering_context.make_current();
 
@@ -370,7 +379,6 @@ impl EngineContext {
         // Present result
         self.rendering_context.present();
     }
-
     pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
         let point = euclid::Point2D::new(x, y);
         let webview_point = servo::WebViewPoint::Device(point);
