@@ -230,7 +230,7 @@ pub fn run() {
     std::thread::spawn(move || {
         let ui = aura_ui::create_ui();
         tx.send(ui.as_weak()).unwrap();
-        
+
         // NOTE: We intentionally DON'T call ui.show() here because that creates
         // a separate window. Instead, Slint components should be rendered by Tauri.
         // The Tauri window setup will handle embedding our UI components.

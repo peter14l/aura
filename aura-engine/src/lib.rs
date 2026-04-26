@@ -60,17 +60,19 @@ struct GlContext {
 }
 
 impl GlContext {
-    pub fn new(window_handle: RawWindowHandle, display_handle: RawDisplayHandle) -> Result<Self, String> {
+    pub fn new(
+        window_handle: RawWindowHandle,
+        display_handle: RawDisplayHandle,
+    ) -> Result<Self, String> {
         #[cfg(target_os = "windows")]
         let pref = DisplayApiPreference::Wgl(Some(window_handle));
         #[cfg(target_os = "macos")]
         let pref = DisplayApiPreference::Cgl;
-        #[cfg(all(unix, not(target_os = "macos"))]
+        #[cfg(all(unix, not(target_os = "macos")))]
         let pref = DisplayApiPreference::Egl;
 
-        let display = unsafe { Display::new(display_handle, pref) }.map_err(|e| {
-            format!("Display creation failed: {:?}", e)
-        })?;
+        let display = unsafe { Display::new(display_handle, pref) }
+            .map_err(|e| format!("Display creation failed: {:?}", e))?;
 
         let template = ConfigTemplateBuilder::new().build();
         let config = unsafe { display.find_configs(template) }
@@ -252,8 +254,11 @@ impl EngineContext {
             "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
         };
 
-        tracing::info!("Initializing Aura engine with window_handle: {:?}, display_handle: {:?}",
-            config.window_handle, config.display_handle);
+        tracing::info!(
+            "Initializing Aura engine with window_handle: {:?}, display_handle: {:?}",
+            config.window_handle,
+            config.display_handle
+        );
 
         // Build Servo without a window first - we'll defer window binding
         let servo = ServoBuilder::default()
@@ -287,7 +292,8 @@ impl EngineContext {
             Err(e) => {
                 tracing::error!("WebViewBuilder failed: {:?}", e);
                 // Return a minimal WebView as fallback
-                ServoBuilder::default().build()
+                ServoBuilder::default()
+                    .build()
                     .create_webview()
                     .expect("Fallback WebView also failed")
             }
