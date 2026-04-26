@@ -477,6 +477,20 @@ pub fn run() {
             });
         });
 
+        let h_key = handle.clone();
+        ui.on_key_event(move |key, code, state, modifiers, repeat| {
+            let h = h_key.clone();
+            let key = key.to_string();
+            let code = code.to_string();
+            tauri::async_runtime::spawn(async move {
+                let state_app: State<'_, AppState> = h.state();
+                let _ = state_app
+                    .hot_swap
+                    .key_event(&key, &code, state, modifiers as u32, repeat)
+                    .await;
+            });
+        });
+
         ui.set_command_bar_visible(true);
         ui.set_status_bar_visible(true);
     });
@@ -492,25 +506,6 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     let state: State<'_, AppState> = h.state();
                     let _ = state.hot_swap.resize(width, height).await;
-                });
-            }
-            tauri::WindowEvent::KeyboardInput { event, .. } => {
-                let h = h_event_loop.clone();
-                let key = format!("{:?}", event.logical_key);
-                let code = format!("{:?}", event.physical_key);
-                let state = match event.state {
-                    tauri::ElementState::Pressed => 0,
-                    tauri::ElementState::Released => 1,
-                    _ => 1,
-                };
-                let repeat = event.repeat;
-
-                tauri::async_runtime::spawn(async move {
-                    let state_app: State<'_, AppState> = h.state();
-                    let _ = state_app
-                        .hot_swap
-                        .key_event(&key, &code, state, 0, repeat)
-                        .await;
                 });
             }
             // Add other event types if needed

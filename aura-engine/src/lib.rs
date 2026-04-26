@@ -8,6 +8,7 @@ use servo::input_events::{
 use servo::{RenderingContext, ServoBuilder, WebView, WebViewBuilder};
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::rc::Rc;
+use std::str::FromStr;
 use url::Url;
 
 use glutin::config::ConfigTemplateBuilder;
@@ -361,8 +362,8 @@ impl EngineContext {
 
         let event = KeyboardEvent {
             state: key_state,
-            key: Key::from(key.as_str()),
-            code: Code::from(code.as_str()),
+            key: Key::from_str(key.as_str()).unwrap_or(Key::Unidentified),
+            code: Code::from_str(code.as_str()).unwrap_or(Code::Unidentified),
             location: keyboard_types::Location::Standard,
             modifiers: Modifiers::from_bits(modifiers).unwrap_or(Modifiers::empty()),
             repeat,
