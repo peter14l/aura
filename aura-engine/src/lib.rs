@@ -25,7 +25,7 @@ use raw_window_handle::{
 };
 use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
-use surfman::{Connection, Device};
+use surfman::Connection;
 
 /// Opaque handle passed across FFI boundary
 pub struct EngineContext {
@@ -167,7 +167,6 @@ struct AuraRenderingContext {
     gl_context: Arc<Mutex<Option<GlContext>>>,
     size: Arc<Mutex<dpi::PhysicalSize<u32>>>,
     connection: Connection,
-    device: Device,
 }
 
 impl RenderingContext for AuraRenderingContext {
@@ -220,11 +219,8 @@ impl RenderingContext for AuraRenderingContext {
             .glow
             .clone()
     }
-    fn connection(&self) -> Connection {
-        self.connection.clone()
-    }
-    fn device(&self) -> Device {
-        self.device.clone()
+    fn connection(&self) -> Option<Connection> {
+        Some(self.connection.clone())
     }
 }
 
@@ -307,16 +303,12 @@ impl EngineContext {
         };
 
         let connection = Connection::new().expect("Failed to create surfman connection");
-        let device = connection
-            .create_device()
-            .expect("Failed to create surfman device");
 
         #[allow(clippy::arc_with_non_send_sync)]
         let rendering_context = AuraRenderingContext {
             gl_context: Arc::new(Mutex::new(gl_context)),
             size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
             connection,
-            device,
         };
 
         // Build WebView
