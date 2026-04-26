@@ -191,11 +191,19 @@ impl RenderingContext for AuraRenderingContext {
     }
     fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl> {
         let guard = self.gl_context.lock().unwrap();
-        guard.as_ref().unwrap().gleam.clone()
+        guard
+            .as_ref()
+            .expect("GL context must be initialized before Servo paint")
+            .gleam
+            .clone()
     }
     fn glow_gl_api(&self) -> std::sync::Arc<glow::Context> {
         let guard = self.gl_context.lock().unwrap();
-        guard.as_ref().unwrap().glow.clone()
+        guard
+            .as_ref()
+            .expect("GL context must be initialized before Servo paint")
+            .glow
+            .clone()
     }
 }
 
