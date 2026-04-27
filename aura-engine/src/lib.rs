@@ -285,9 +285,12 @@ impl EngineContext {
     pub fn heavy_init(&mut self) -> bool {
         let config = &self.config;
 
+        tracing::info!("heavy_init: window_handle={:p}, display_handle={:p}, instance_handle={:p}", 
+            config.window_handle, config.display_handle, config.instance_handle);
+
         // Only create GL context if we have a valid window handle
         let gl_context = if config.window_handle.is_null() {
-            tracing::warn!("No window handle provided - running headless");
+            tracing::warn!("No window handle provided - running headless mode");
             None
         } else {
             let (wh, dh) = reconstruct_handles(config);
