@@ -33,8 +33,8 @@ pub struct EngineContext {
     current_url: String,
     #[allow(dead_code)]
     servo: servo::Servo,
-    webview: WebView,
-    rendering_context: Rc<AuraRenderingContext>,
+    webview: Option<WebView>,
+    rendering_context: Option<Rc<AuraRenderingContext>>,
     config: EngineConfig,
 }
 
@@ -276,10 +276,8 @@ impl EngineContext {
         Self {
             current_url: String::new(),
             servo,
-            // We use options for webview/rendering_context to allow two-phase initialization
-            webview: unsafe { std::mem::zeroed() },
-            rendering_context: unsafe { std::mem::zeroed() },
-            // Storing the config for later use in heavy_init
+            webview: None,
+            rendering_context: None,
             config: *config,
         }
     }
@@ -311,19 +309,22 @@ impl EngineContext {
         });
 
         // Build WebView
-        self.rendering_context = rendering_context.clone();
-        self.webview = WebViewBuilder::new(&self.servo, rendering_context).build();
+        self.rendering_context = Some(rendering_context.clone());
+        self.webview = Some(WebViewBuilder::new(&self.servo, rendering_context).build());
 
         // Load default URL
         let url = Url::parse("https://www.google.com").unwrap();
         tracing::info!("Engine: Navigating to {}", url);
-        self.webview.load(url.clone());
-        self.current_url = url.to_string();
-
-        tracing::info!("Aura engine initialized successfully");
-        true
+        if let Some(webview) = &self.webview {
+            webview.load(url.clone());
+            self.current_url = url.to_string();
+            tracing::info!("Aura engine initialized successfully");
+            true
+        } else {
+            tracing::error!("Failed to initialize WebView");
+            false
+        }
     }
-
     pub fn restore_from_snapshot(&mut self, snapshot: &EngineSnapshot) -> bool {
         if !snapshot.current_url.is_null() {
             let url = unsafe { CStr::from_ptr(snapshot.current_url) }
