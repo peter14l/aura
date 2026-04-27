@@ -248,6 +248,11 @@ impl HotSwapManager {
         }
     }
 
+    pub async fn is_ready(&self) -> bool {
+        let guard = self.current.lock().await;
+        guard.is_some()
+    }
+
     pub async fn paint(&self, surface: SendableSurface) -> Result<(), SwapError> {
         let guard = self.current.lock().await;
         if let Some(engine) = guard.as_ref() {

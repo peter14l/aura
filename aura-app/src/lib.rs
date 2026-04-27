@@ -423,6 +423,12 @@ pub fn run() {
                 let h_swap_render = hot_swap.clone();
                 let win_render = win.clone();
                 tauri::async_runtime::spawn(async move {
+                    // Wait for engine to be ready before attempting paint
+                    while !h_swap_render.is_ready().await {
+                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    }
+                    tracing::info!("Engine ready, starting render loop");
+
                     loop {
                         let surface = if let Ok(handle) = win_render.window_handle() {
                             let raw = handle.as_raw();
