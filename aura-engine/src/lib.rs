@@ -332,7 +332,9 @@ impl EngineContext {
                 .into_owned();
             self.current_url = url.clone();
             if let Ok(parsed) = Url::parse(&url) {
-                self.webview.load(parsed);
+                if let Some(webview) = &self.webview {
+                    webview.load(parsed);
+                }
             }
         }
         true
@@ -352,53 +354,61 @@ impl EngineContext {
     pub fn navigate(&mut self, url_str: &str) -> bool {
         if let Ok(url) = Url::parse(url_str) {
             self.current_url = url_str.to_string();
-            self.webview.load(url);
-            return true;
+            if let Some(webview) = &self.webview {
+                webview.load(url);
+                return true;
+            }
         }
         false
     }
 
     pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
-        // Simple color fill test to verify surface access
-        let guard = self.rendering_context.gl_context.lock().unwrap();
-        if let Some(ctx) = guard.as_ref() {
-            unsafe {
-                ctx.glow.clear_color(1.0, 0.0, 1.0, 1.0); // Bright Magenta
-                ctx.glow.clear(glow::COLOR_BUFFER_BIT);
+        if let (Some(webview), Some(rendering_context)) = (&self.webview, &self.rendering_context) {
+            // Simple color fill test to verify surface access
+            let guard = rendering_context.gl_context.lock().unwrap();
+            if let Some(ctx) = guard.as_ref() {
+                unsafe {
+                    ctx.glow.clear_color(1.0, 0.0, 1.0, 1.0); // Bright Magenta
+                    ctx.glow.clear(glow::COLOR_BUFFER_BIT);
+                }
             }
+            drop(guard);
+
+            // Ensure context is current
+            let _ = rendering_context.make_current();
+
+            // Trigger paint
+            webview.paint();
+
+            // Present result
+            rendering_context.present();
         }
-
-        // Ensure context is current
-        let _ = self.rendering_context.make_current();
-
-        // Trigger paint
-        self.webview.paint();
-
-        // Present result
-        self.rendering_context.present();
     }
-    pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
-        let point = euclid::Point2D::new(x, y);
-        let webview_point = servo::WebViewPoint::Device(point);
 
-        let event = match event_type {
-            0 => InputEvent::MouseMove(MouseMoveEvent {
-                point: webview_point,
-                is_compatibility_event_for_touch: false,
-            }),
-            1 => InputEvent::MouseButton(MouseButtonEvent {
-                button: MouseButton::Left,
-                action: MouseButtonAction::Down,
-                point: webview_point,
-            }),
-            2 => InputEvent::MouseButton(MouseButtonEvent {
-                button: MouseButton::Left,
-                action: MouseButtonAction::Up,
-                point: webview_point,
-            }),
-            _ => return,
-        };
-        self.webview.notify_input_event(event);
+    pub fn handle_mouse_event(&mut self, x: f32, y: f32, event_type: i32) {
+        if let Some(webview) = &self.webview {
+            let point = euclid::Point2D::new(x, y);
+            let webview_point = servo::WebViewPoint::Device(point);
+
+            let event = match event_type {
+                0 => InputEvent::MouseMove(MouseMoveEvent {
+                    point: webview_point,
+                    is_compatibility_event_for_touch: false,
+                }),
+                1 => InputEvent::MouseButton(MouseButtonEvent {
+                    button: MouseButton::Left,
+                    action: MouseButtonAction::Down,
+                    point: webview_point,
+                }),
+                2 => InputEvent::MouseButton(MouseButtonEvent {
+                    button: MouseButton::Left,
+                    action: MouseButtonAction::Up,
+                    point: webview_point,
+                }),
+                _ => return,
+            };
+            webview.notify_input_event(event);
+        }
     }
 
     pub fn handle_key_event(
@@ -409,24 +419,25 @@ impl EngineContext {
         modifiers: u32,
         repeat: bool,
     ) {
-        let key_state = if state == 0 {
-            KeyState::Down
-        } else {
-            KeyState::Up
-        };
+        if let Some(webview) = &self.webview {
+            let key_state = if state == 0 {
+                KeyState::Down
+            } else {
+                KeyState::Up
+            };
 
-        let event = KeyboardEvent {
-            state: key_state,
-            key: Key::from_str(key.as_str()).unwrap_or_else(|_| Key::Character(key.clone())),
-            code: Code::from_str(code.as_str()).unwrap_or(Code::Unidentified),
-            location: keyboard_types::Location::Standard,
-            modifiers: Modifiers::from_bits(modifiers).unwrap_or(Modifiers::empty()),
-            repeat,
-            is_composing: false,
-        };
+            let event = KeyboardEvent {
+                state: key_state,
+                key: Key::from_str(key.as_str()).unwrap_or_else(|_| Key::Character(key.clone())),
+                code: Code::from_str(code.as_str()).unwrap_or(Code::Unidentified),
+                location: keyboard_types::Location::Standard,
+                modifiers: Modifiers::from_bits(modifiers).unwrap_or(Modifiers::empty()),
+                repeat,
+                is_composing: false,
+            };
 
-        self.webview
-            .notify_input_event(InputEvent::Keyboard(ServoKeyboardEvent { event }));
+            webview.notify_input_event(InputEvent::Keyboard(ServoKeyboardEvent { event }));
+        }
     }
 }
 
@@ -581,8 +592,13 @@ pub unsafe extern "C" fn aura_engine_resize(ctx: *mut EngineContext, width: u32,
         return;
     }
     let ctx = unsafe { &mut *ctx };
-    let size = dpi::PhysicalSize::new(width, height);
-    ctx.webview.resize(size);
+    let size = servo::PhysicalSize::new(width, height);
+    if let Some(rendering_context) = &ctx.rendering_context {
+        rendering_context.resize(dpi::PhysicalSize::new(width, height));
+    }
+    if let Some(webview) = &ctx.webview {
+        webview.resize(size);
+    }
 }
 
 /// Destroy the engine context and free its memory.
