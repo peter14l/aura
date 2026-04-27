@@ -397,6 +397,13 @@ pub fn run() {
                             // Now call heavy init
                             if h.heavy_init().await.is_ok() {
                                 tracing::info!("Engine initialized and ready from {:?}", p);
+
+                                // Set initial viewport size
+                                let _ = h.resize(1200, 800).await;
+                                // Navigate to default URL
+                                if h.navigate("https://www.google.com").await.is_ok() {
+                                    tracing::info!("Navigated to Google");
+                                }
                             } else {
                                 tracing::error!("Heavy initialization failed for {:?}", p);
                             }
@@ -437,9 +444,12 @@ pub fn run() {
                         };
 
                         if !surface.is_null() {
-                            let _ = h_swap_render
+                            if let Err(e) = h_swap_render
                                 .paint(hot_swap::SendableSurface(surface))
-                                .await;
+                                .await
+                            {
+                                tracing::warn!("Paint failed: {}", e);
+                            }
                         }
                         tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
                     }
