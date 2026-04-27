@@ -39,6 +39,7 @@ pub struct EngineContext {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct EngineConfig {
     pub user_agent: *const c_char,
     pub placeholder: bool,
@@ -316,7 +317,7 @@ impl EngineContext {
         // Load default URL
         let url = Url::parse("https://www.google.com").unwrap();
         tracing::info!("Engine: Navigating to {}", url);
-        self.webview.load(url);
+        self.webview.load(url.clone());
         self.current_url = url.to_string();
 
         tracing::info!("Aura engine initialized successfully");
@@ -445,7 +446,7 @@ pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *
     }
 
     // Perform only essential config cloning here
-    let config = &*config;
+    let config = unsafe { &*config };
     let ctx = Box::new(EngineContext::new_light(config));
     Box::into_raw(ctx)
 }
@@ -455,7 +456,7 @@ pub unsafe extern "C" fn aura_engine_init(ctx: *mut EngineContext) -> bool {
     if ctx.is_null() {
         return false;
     }
-    let ctx = &mut *ctx;
+    let ctx = unsafe { &mut *ctx };
     ctx.heavy_init()
 }
 
