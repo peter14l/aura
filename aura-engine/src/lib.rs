@@ -307,12 +307,16 @@ impl EngineContext {
 
         let rendering_context = Rc::new(AuraRenderingContext {
             gl_context: Arc::new(Mutex::new(gl_context)),
-            size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1024, 768))),
+            size: Arc::new(Mutex::new(dpi::PhysicalSize::new(1200, 800))), // Match app resize
             connection,
         });
 
-        // Build WebView
+        // Build WebView with correct initial size
         self.rendering_context = Some(rendering_context.clone());
+
+        // Force a proper resize
+        rendering_context.resize(dpi::PhysicalSize::new(1200, 800));
+
         self.webview = Some(WebViewBuilder::new(&self.servo, rendering_context).build());
 
         // Load default URL
@@ -365,25 +369,17 @@ impl EngineContext {
         false
     }
 
-    pub fn paint_to_surface(&mut self, _surface: *mut c_void) {
+    pub fn paint_to_surface(&mut self, surface: *mut c_void) {
+        // The 'surface' here should be Tauri's window handle we're painting INTO
+        // For now, just verify we have both webview and context working
         if let (Some(webview), Some(rendering_context)) = (&self.webview, &self.rendering_context) {
-            // Simple color fill test to verify surface access
-            let guard = rendering_context.gl_context.lock().unwrap();
-            if let Some(ctx) = guard.as_ref() {
-                unsafe {
-                    ctx.glow.clear_color(1.0, 0.0, 1.0, 1.0); // Bright Magenta
-                    ctx.glow.clear(glow::COLOR_BUFFER_BIT);
-                }
-            }
-            drop(guard);
-
-            // Ensure context is current
+            // Make sure context is current for painting
             let _ = rendering_context.make_current();
 
-            // Trigger paint
+            // Paint webview (Servo renders here)
             webview.paint();
 
-            // Present result
+            // Present to screen
             rendering_context.present();
         }
     }
