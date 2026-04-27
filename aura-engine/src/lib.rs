@@ -592,9 +592,9 @@ pub unsafe extern "C" fn aura_engine_resize(ctx: *mut EngineContext, width: u32,
         return;
     }
     let ctx = unsafe { &mut *ctx };
-    let size = servo::PhysicalSize::new(width, height);
+    let size = dpi::PhysicalSize::new(width, height);
     if let Some(rendering_context) = &ctx.rendering_context {
-        rendering_context.resize(dpi::PhysicalSize::new(width, height));
+        rendering_context.resize(size);
     }
     if let Some(webview) = &ctx.webview {
         webview.resize(size);
