@@ -223,6 +223,22 @@ impl HotSwapManager {
         }
     }
 
+    pub async fn heavy_init(&self) -> Result<(), SwapError> {
+        let guard = self.current.lock().await;
+        if let Some(engine) = guard.as_ref() {
+            unsafe {
+                let init_fn: Symbol<unsafe extern "C" fn(*mut EngineContext) -> bool> =
+                    engine.lib.get(b"aura_engine_init")?;
+                if !init_fn(engine.ctx) {
+                    return Err(SwapError::InitFailed);
+                }
+            }
+            Ok(())
+        } else {
+            Err(SwapError::InitFailed)
+        }
+    }
+
     pub async fn navigate(&self, url: &str) -> Result<(), SwapError> {
         let guard = self.current.lock().await;
         if let Some(engine) = guard.as_ref() {

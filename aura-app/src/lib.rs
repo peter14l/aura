@@ -394,7 +394,12 @@ pub fn run() {
                         {
                             tracing::error!("Failed to load engine from {:?}: {}", p, e);
                         } else {
-                            tracing::info!("Engine loaded successfully from {:?}", p);
+                            // Now call heavy init
+                            if h.heavy_init().await.is_ok() {
+                                tracing::info!("Engine initialized and ready from {:?}", p);
+                            } else {
+                                tracing::error!("Heavy initialization failed for {:?}", p);
+                            }
                         }
                     });
                     break;
