@@ -162,14 +162,14 @@ impl GlContext {
     }
 
     pub fn resize(&mut self, width: std::num::NonZeroU32, height: std::num::NonZeroU32) {
-        let _ = self.surface.resize(&self.context, width, height);
+        self.surface.resize(&self.context, width, height);
     }
 }
 
 /// Real implementation for a RenderingContext
 struct AuraRenderingContext {
-    gl_context: Arc<Mutex<Option<GlContext>>>,
-    size: Arc<Mutex<dpi::PhysicalSize<u32>>>,
+    gl_context: Arc<std::sync::Mutex<Option<GlContext>>>,
+    size: Arc<std::sync::Mutex<dpi::PhysicalSize<u32>>>,
     connection: Connection,
 }
 
@@ -331,10 +331,10 @@ impl EngineContext {
                 .to_string_lossy()
                 .into_owned();
             self.current_url = url.clone();
-            if let Ok(parsed) = Url::parse(&url) {
-                if let Some(webview) = &self.webview {
-                    webview.load(parsed);
-                }
+            if let Ok(parsed) = Url::parse(&url)
+                && let Some(webview) = &self.webview
+            {
+                webview.load(parsed);
             }
         }
         true
@@ -463,12 +463,16 @@ pub unsafe extern "C" fn aura_engine_cold_init(config: *const EngineConfig) -> *
     Box::into_raw(ctx)
 }
 
+/// Initialize the engine after loading the library.
+///
+/// # Safety
+/// The `ctx` pointer must be a valid, non-null pointer to an `EngineContext` struct.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn aura_engine_init(ctx: *mut EngineContext) -> bool {
     if ctx.is_null() {
         return false;
     }
-    let ctx = unsafe { &mut *ctx };
+    let ctx = &mut *ctx;
     ctx.heavy_init()
 }
 
