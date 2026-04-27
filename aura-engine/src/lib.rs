@@ -35,6 +35,7 @@ pub struct EngineContext {
     servo: servo::Servo,
     webview: WebView,
     rendering_context: Rc<AuraRenderingContext>,
+    config: EngineConfig,
 }
 
 #[repr(C)]
@@ -267,26 +268,23 @@ fn reconstruct_handles(config: &EngineConfig) -> (RawWindowHandle, RawDisplayHan
 }
 
 impl EngineContext {
-    pub fn new_cold(config: &EngineConfig) -> Self {
-        let _ua = if !config.user_agent.is_null() {
-            unsafe {
-                CStr::from_ptr(config.user_agent)
-                    .to_string_lossy()
-                    .into_owned()
-            }
-        } else {
-            "Aura/1.0 (Subtractive Glassmorphism; Rust)".to_string()
-        };
-
-        tracing::info!(
-            "Initializing Aura engine with window_handle: {:?}, display_handle: {:?}",
-            config.window_handle,
-            config.display_handle
-        );
-
-        tracing::info!("Engine: Starting ServoBuilder...");
+    pub fn new_light(config: &EngineConfig) -> Self {
+        // Build Servo without a window first - we'll defer window binding
         let servo = ServoBuilder::default().build();
-        tracing::info!("Engine: ServoBuilder done.");
+
+        Self {
+            current_url: String::new(),
+            servo,
+            // We use options for webview/rendering_context to allow two-phase initialization
+            webview: unsafe { std::mem::zeroed() },
+            rendering_context: unsafe { std::mem::zeroed() },
+            // Storing the config for later use in heavy_init
+            config: *config,
+        }
+    }
+
+    pub fn heavy_init(&mut self) -> bool {
+        let config = &self.config;
 
         // Only create GL context if we have a valid window handle
         let gl_context = if config.window_handle.is_null() {
@@ -312,23 +310,17 @@ impl EngineContext {
         });
 
         // Build WebView
-        tracing::info!("Engine: Starting WebViewBuilder...");
-        let webview = WebViewBuilder::new(&servo, rendering_context.clone()).build();
-        tracing::info!("Engine: WebViewBuilder done.");
+        self.rendering_context = rendering_context.clone();
+        self.webview = WebViewBuilder::new(&self.servo, rendering_context).build();
 
         // Load default URL
         let url = Url::parse("https://www.google.com").unwrap();
         tracing::info!("Engine: Navigating to {}", url);
-        webview.load(url);
+        self.webview.load(url);
+        self.current_url = url.to_string();
 
         tracing::info!("Aura engine initialized successfully");
-
-        Self {
-            current_url: "https://www.google.com".to_string(),
-            servo,
-            webview,
-            rendering_context,
-        }
+        true
     }
 
     pub fn restore_from_snapshot(&mut self, snapshot: &EngineSnapshot) -> bool {
