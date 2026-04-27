@@ -449,12 +449,17 @@ pub fn run() {
                             std::ptr::null_mut()
                         };
 
-                        if !surface.is_null() {
+                        if surface.is_null() {
+                            tracing::info!("Surface is null, skipping paint");
+                        } else {
+                            tracing::info!("Calling paint...");
                             if let Err(e) = h_swap_render
                                 .paint(hot_swap::SendableSurface(surface))
                                 .await
                             {
                                 tracing::warn!("Paint failed: {}", e);
+                            } else {
+                                tracing::info!("Paint succeeded");
                             }
                         }
                         tokio::time::sleep(std::time::Duration::from_millis(16)).await; // ~60 FPS
