@@ -158,6 +158,7 @@ impl GlContext {
     }
 
     pub fn present(&self) {
+        tracing::debug!("present: swapping buffers");
         let _ = self.surface.swap_buffers(&self.context);
     }
 
@@ -370,17 +371,27 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, surface: *mut c_void) {
-        // The 'surface' here should be Tauri's window handle we're painting INTO
-        // For now, just verify we have both webview and context working
+        // The 'surface' here is Tauri's window handle we're painting INTO
         if let (Some(webview), Some(rendering_context)) = (&self.webview, &self.rendering_context) {
+            // Log paint call
+            tracing::debug!("paint_to_surface: making context current");
+            
             // Make sure context is current for painting
-            let _ = rendering_context.make_current();
+            if let Err(e) = rendering_context.make_current() {
+                tracing::error!("make_current failed: {:?}", e);
+                return;
+            }
 
             // Paint webview (Servo renders here)
+            tracing::debug!("paint_to_surface: calling webview.paint()");
             webview.paint();
 
             // Present to screen
+            tracing::debug!("paint_to_surface: presenting");
             rendering_context.present();
+            tracing::debug!("paint_to_surface: done");
+        } else {
+            tracing::warn!("paint_to_surface: no webview or rendering_context");
         }
     }
 
