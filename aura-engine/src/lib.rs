@@ -371,25 +371,28 @@ impl EngineContext {
     }
 
     pub fn paint_to_surface(&mut self, surface: *mut c_void) {
-        // The 'surface' here is Tauri's window handle we're painting INTO
+        // Force a visible test to see if rendering works
         if let (Some(webview), Some(rendering_context)) = (&self.webview, &self.rendering_context) {
-            // Log paint call
-            tracing::debug!("paint_to_surface: making context current");
-            
-            // Make sure context is current for painting
             if let Err(e) = rendering_context.make_current() {
                 tracing::error!("make_current failed: {:?}", e);
                 return;
             }
 
-            // Paint webview (Servo renders here)
-            tracing::debug!("paint_to_surface: calling webview.paint()");
-            webview.paint();
+            // Draw a visible bright YELLOW test rectangle (100x100 at center)
+            let guard = rendering_context.gl_context.lock().unwrap();
+            if let Some(ctx) = guard.as_ref() {
+                unsafe {
+                    // Clear to yellow to see if rendering shows
+                    ctx.glow.clear_color(1.0, 1.0, 0.0, 1.0); // Bright Yellow
+                    ctx.glow.clear(glow::COLOR_BUFFER_BIT);
+                }
+                tracing::debug!("Painted yellow test");
+            }
+            drop(guard);
 
-            // Present to screen
-            tracing::debug!("paint_to_surface: presenting");
+            // Then let webview paint on top
+            webview.paint();
             rendering_context.present();
-            tracing::debug!("paint_to_surface: done");
         } else {
             tracing::warn!("paint_to_surface: no webview or rendering_context");
         }
